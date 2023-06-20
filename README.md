@@ -3,6 +3,11 @@ Lua-SDL (SDL1.2 binding for Lua)
 
 Redesigned for SDL 1.2 (not all features)
 
+the examples have also been redone and mostly work
+
+
+
+
 The following is the text of the original readme:
 
 
