@@ -48,7 +48,7 @@
 static int
 l_createWindow(lua_State *L)
 {
-	const char *name = "lua-SDL2 Window";
+	const char *name = "lua-SDL Window";
 	int x = SDL_WINDOWPOS_UNDEFINED;
 	int y = SDL_WINDOWPOS_UNDEFINED;
 	int width = 50;

@@ -2,7 +2,7 @@
 -- server.lua -- UDP server
 --
 
-local net	= require "SDL.net"
+local net	= require "SDL1.net"
 
 -- Init
 net.init()

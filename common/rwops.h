@@ -21,7 +21,7 @@
 
 #include "common.h"
 
-#define RWOpsName	RWOps.name
+#define RWOpsName RWOps.name
 
 extern const luaL_Reg RWOpsFunctions[];
 

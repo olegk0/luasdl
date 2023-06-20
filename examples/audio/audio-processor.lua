@@ -2,7 +2,7 @@
 -- audio-processor.lua -- the callback function
 --
 
-local SDL	= require "SDL"
+local SDL	= require "SDL1"
 
 local args	= { ... }
 

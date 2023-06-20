@@ -2,7 +2,7 @@
 -- channel.lua -- shows how to pass / wait data between channels
 --
 
-local SDL	= require "SDL"
+local SDL	= require "SDL1"
 
 SDL.init { SDL.flags.Video }
 

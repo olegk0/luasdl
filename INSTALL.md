@@ -1,13 +1,13 @@
-Lua-SDL2 INSTALL
+Lua-SDL INSTALL
 ================
 
-Lua-SDL2 installation guide.
+Lua-SDL installation guide.
 
 Requirements
 ============
 
 * [Lua](http://lua.org), mandatory (Lua 5.1, LuaJIT, Lua 5.2, or Lua 5.3)
-* [SDL 2.0.1+](http://libsdl.org), mandatory
+* [SDL 1.0.6+](http://libsdl.org), mandatory
 * Either [CMake](http://cmake.org) or [LuaRocks](https://luarocks.org), for building only
 
 And optional libraries for the official SDL modules:
@@ -20,37 +20,34 @@ And optional libraries for the official SDL modules:
 Installation (LuaRocks)
 =======================
 
-    $ luarocks install lua-sdl2
+    $ luarocks install lua-sdl
 
-Will install Lua-SDL2 from the Luarocks repositories.
+Will install Lua-SDL from the Luarocks repositories.
 
-If you want to install a development version, clone the repository and run:
-
-    $ luarocks install lua-sdl2-scm-3.rockspec
 
 Currently, there is no way to disable the mixer/ttf/net/image modules.
 Eventually they will be split into separate rockspecs.
 
-Manually locating SDL2 headers
+Manually locating SDL headers
 ------------------------------
 
-By default, Luarocks expects to find the SDL2 headers under `/usr/include/SDL2/`.
-You can customize the prefix by setting the SDL2_INCDIR variable in your Luarocks
+By default, Luarocks expects to find the SDL headers under `/usr/include/SDL/`.
+You can customize the prefix by setting the SDL_INCDIR variable in your Luarocks
 configuration or on the command line for installing.
 
-On most systems, you need to specify the path *containing* the `SDL2/` folder,
+On most systems, you need to specify the path *containing* the `SDL/` folder,
 for example `/usr/local/include`.
 
 On Windows, you need to specify the folder containing the headers directly,
-such as `c:\include\SDL2\`.
+such as `c:\include\SDL\`.
 
 Installation (CMake)
 ====================
 
-Take care to substitute version with the current Lua-SDL2 version.
+Take care to substitute version with the current Lua-SDL version.
 
-    $ tar xvzf Lua-SDL2-version.tar.gz
-    $ cd Lua-SDL2-version
+    $ tar xvzf Lua-SDL-version.tar.gz
+    $ cd Lua-SDL-version
     $ mkdir _build_
     $ cd _build_
     $ cmake ..

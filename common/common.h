@@ -1,5 +1,5 @@
 /*
- * common.h -- common code for lua-SDL2
+ * common.h -- common code for lua-SDL
  *
  * Copyright (c) 2013, 2014 David Demelier <markand@malikania.fr>
  * Copyright (c) 2014 Joseph Wallace <tangent128@gmail.com>
@@ -31,26 +31,26 @@
 /*
  * Portability bits
  */
-#if defined(_WIN32)
+/*#if defined(_WIN32)
 #  define EXPORT	__declspec(dllexport)
 #  define strdup	_strdup
-#else
-#  define EXPORT
-#endif
+#else*/
+#define EXPORT
+// #endif
 
 /*
  * Portability bits for different Lua versions
  */
 #if LUA_VERSION_NUM == 501
 
-#  define LUA_OK			0
-#  define lua_load(l, r, d, c, m)		lua_load(l, r, d, c)
+#define LUA_OK 0
+#define lua_load(l, r, d, c, m) lua_load(l, r, d, c)
 
-void *
-luaL_testudata(lua_State *L, int index, const char *tname);
+void*
+luaL_testudata(lua_State* L, int index, const char* tname);
 
 void
-lua_rawsetp(lua_State *L, int index, void *key);
+lua_rawsetp(lua_State* L, int index, void* key);
 
 #endif
 
@@ -59,13 +59,13 @@ lua_rawsetp(lua_State *L, int index, void *key);
 #define lua_getuservalue(L, i) (lua_getuservalue((L), (i)), lua_type((L), -1))
 
 int
-lua_geti(lua_State *L, int index, lua_Integer i);
+lua_geti(lua_State* L, int index, lua_Integer i);
 
 #endif
 
 #if LUA_VERSION_NUM < 503
 
-#  define lua_dump(l, w, d, s)		lua_dump(l, w, d)
+#define lua_dump(l, w, d, s) lua_dump(l, w, d)
 
 #endif
 
@@ -77,9 +77,10 @@ lua_geti(lua_State *L, int index, lua_Integer i);
  *
  * @see commonBindEnum
  */
-typedef struct {
-	const char	*name;			/*! the field name */
-	int		value;			/*! the integer value */
+typedef struct
+{
+  const char* name; /*! the field name */
+  int value;        /*! the integer value */
 } CommonEnum;
 
 /**
@@ -90,10 +91,11 @@ typedef struct {
  *
  * @see commonBindObject
  */
-typedef struct {
-	const char	*name;			/*! metatable name */
-	const luaL_Reg	*methods;		/*! methods (optional) */
-	const luaL_Reg	*metamethods;		/*! metamethods (optional) */
+typedef struct
+{
+  const char* name;            /*! metatable name */
+  const luaL_Reg* methods;     /*! methods (optional) */
+  const luaL_Reg* metamethods; /*! metamethods (optional) */
 } CommonObject;
 
 /**
@@ -105,9 +107,10 @@ typedef struct {
  * So any object should be passed as common_userdata so we know if we should
  * really delete the object or just let it live.
  */
-typedef struct {
-	int		mustdelete;		/*! tells if we should delete it */
-	void		*data;			/*! the data itself */
+typedef struct
+{
+  int mustdelete; /*! tells if we should delete it */
+  void* data;     /*! the data itself */
 } CommonUserdata;
 
 /**
@@ -119,10 +122,10 @@ typedef struct {
  * @param evalues the values
  */
 void
-commonBindEnum(lua_State *L,
-		 int tindex,
-		 const char *tname,
-		 const CommonEnum *values);
+commonBindEnum(lua_State* L,
+               int tindex,
+               const char* tname,
+               const CommonEnum* values);
 
 /**
  * Get a enumeration from a Lua table.
@@ -132,7 +135,7 @@ commonBindEnum(lua_State *L,
  * @return the value or 0
  */
 int
-commonGetEnum(lua_State *L, int tindex);
+commonGetEnum(lua_State* L, int tindex);
 
 /**
  * Push a enumeration as a map of enum to bool. That is if flag A is set and B
@@ -146,7 +149,7 @@ commonGetEnum(lua_State *L, int tindex);
  * @param evalue the enumeration to check
  */
 void
-commonPushEnum(lua_State *L, int value, const CommonEnum *evalue);
+commonPushEnum(lua_State* L, int value, const CommonEnum* evalue);
 
 /**
  * Bind an object to Lua.
@@ -155,7 +158,7 @@ commonPushEnum(lua_State *L, int value, const CommonEnum *evalue);
  * @param def the object definition
  */
 void
-commonBindObject(lua_State *L, const CommonObject *def);
+commonBindObject(lua_State* L, const CommonObject* def);
 
 /**
  * This function binds all functions to the already created table SDL.
@@ -164,7 +167,7 @@ commonBindObject(lua_State *L, const CommonObject *def);
  * @param functions the functions
  */
 void
-commonBindLibrary(lua_State *L, const luaL_Reg *functions);
+commonBindLibrary(lua_State* L, const luaL_Reg* functions);
 
 /**
  * Create a table and fills the functions in it.
@@ -173,7 +176,7 @@ commonBindLibrary(lua_State *L, const luaL_Reg *functions);
  * @param functions the functions
  */
 void
-commonNewLibrary(lua_State *L, const luaL_Reg *functions);
+commonNewLibrary(lua_State* L, const luaL_Reg* functions);
 
 /**
  * Push a SDL object to Lua as an userdata. By default, the object
@@ -184,8 +187,8 @@ commonNewLibrary(lua_State *L, const luaL_Reg *functions);
  * @param data the pointer to the data
  * @return the new created object
  */
-CommonUserdata *
-commonPushUserdata(lua_State *L, const char *tname, void *data);
+CommonUserdata*
+commonPushUserdata(lua_State* L, const char* tname, void* data);
 
 /**
  * Get a SDL object from Lua.
@@ -195,8 +198,8 @@ commonPushUserdata(lua_State *L, const char *tname, void *data);
  * @param tname the object metatable name
  * @return the object or raise an error
  */
-CommonUserdata *
-commonGetUserdata(lua_State *L, int index, const char *tname);
+CommonUserdata*
+commonGetUserdata(lua_State* L, int index, const char* tname);
 
 /**
  * Pushes count * nil + the SDL_GetError() message.
@@ -206,7 +209,7 @@ commonGetUserdata(lua_State *L, int index, const char *tname);
  * @return count
  */
 int
-commonPushSDLError(lua_State *L, int count);
+commonPushSDLError(lua_State* L, int count);
 
 /**
  * Pushes the errno error.
@@ -216,7 +219,7 @@ commonPushSDLError(lua_State *L, int count);
  * @return count
  */
 int
-commonPushErrno(lua_State *L, int count);
+commonPushErrno(lua_State* L, int count);
 
 /**
  * Convenient wrapper for pushing values.
@@ -234,9 +237,9 @@ commonPushErrno(lua_State *L, int count);
  * @return the number of values pushed
  */
 int
-commonPush(lua_State *L, const char *fmt, ...);
+commonPush(lua_State* L, const char* fmt, ...);
 
-#define commonGetAs(L, index, name, type)				\
-	((type)commonGetUserdata(L, index, name)->data)
+#define commonGetAs(L, index, name, type)                                      \
+  ((type)commonGetUserdata(L, index, name)->data)
 
 #endif /* !_COMMON_H_ */

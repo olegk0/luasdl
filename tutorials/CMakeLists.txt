@@ -1,5 +1,5 @@
 #
-# CMakeLists.txt -- build system for LuaSDL2
+# CMakeLists.txt -- build system for LuaSDL
 #
 # Copyright (c) 2013, 2014 David Demelier <markand@malikania.fr>
 #

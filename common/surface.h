@@ -21,12 +21,14 @@
 
 #include <common/common.h>
 
-#define SurfaceName	Surface.name
+#define SurfaceName Surface.name
 
 extern const luaL_Reg SurfaceFunctions[];
 
 extern const CommonEnum BlendMode[];
 
 extern const CommonObject Surface;
+
+extern const CommonEnum VideoFlags[];
 
 #endif /* !_SURFACE_H_ */

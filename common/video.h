@@ -22,6 +22,12 @@
 #include <common/array.h>
 #include <common/common.h>
 
+typedef struct SDL_Point
+{
+  int x;
+  int y;
+} SDL_Point;
+
 /* --------------------------------------------------------
  * Shared functions
  * -------------------------------------------------------- */
@@ -30,11 +36,12 @@
  * @struct line
  * @brief Get line coordinates
  */
-typedef struct line {
-	int	x1;
-	int	y1;
-	int	x2;
-	int	y2;
+typedef struct line
+{
+  int x1;
+  int y1;
+  int x2;
+  int y2;
 } Line;
 
 /**
@@ -44,7 +51,7 @@ typedef struct line {
  * @param rect the rectangle to push
  */
 void
-videoPushRect(lua_State *L, const SDL_Rect *rect);
+videoPushRect(lua_State* L, const SDL_Rect* rect);
 
 /**
  * Get a SDL_Rect from a Lua table. If the value at index is not a
@@ -55,7 +62,7 @@ videoPushRect(lua_State *L, const SDL_Rect *rect);
  * @param rect the result
  */
 void
-videoGetRect(lua_State *L, int index, SDL_Rect *rect);
+videoGetRect(lua_State* L, int index, SDL_Rect* rect);
 
 /**
  * Get a list of rects from table of tables. Does not raises an error.
@@ -66,7 +73,7 @@ videoGetRect(lua_State *L, int index, SDL_Rect *rect);
  * @return 0 on success or -1 on failure
  */
 int
-videoGetRects(lua_State *L, int index, Array *rects);
+videoGetRects(lua_State* L, int index, Array* rects);
 
 /**
  * Push a SDL_Point as a table to Lua.
@@ -75,7 +82,7 @@ videoGetRects(lua_State *L, int index, Array *rects);
  * @param point the point to push
  */
 void
-videoPushPoint(lua_State *L, const SDL_Point *point);
+videoPushPoint(lua_State* L, const SDL_Point* point);
 
 /**
  * Get a point from a Lua table. If the value at index is not a
@@ -86,7 +93,7 @@ videoPushPoint(lua_State *L, const SDL_Point *point);
  * @param point the result
  */
 void
-videoGetPoint(lua_State *L, int index, SDL_Point *point);
+videoGetPoint(lua_State* L, int index, SDL_Point* point);
 
 /**
  * Get a list of points from table of tables. Does not raises an error.
@@ -97,7 +104,7 @@ videoGetPoint(lua_State *L, int index, SDL_Point *point);
  * @return 0 on success or -1 on failure
  */
 int
-videoGetPoints(lua_State *L, int index, Array *array);
+videoGetPoints(lua_State* L, int index, Array* array);
 
 /**
  * Get a line as 4 int or a table of 4 fields.
@@ -107,7 +114,7 @@ videoGetPoints(lua_State *L, int index, Array *array);
  * @param line the line coords
  */
 void
-videoGetLine(lua_State *L, int index, Line *line);
+videoGetLine(lua_State* L, int index, Line* line);
 
 /**
  * Get a color from a Lua table or a hexadecimal number.
@@ -119,7 +126,7 @@ videoGetLine(lua_State *L, int index, Line *line);
  * @return the color as hexadecimal
  */
 Uint32
-videoGetColorHex(lua_State *L, int index);
+videoGetColorHex(lua_State* L, int index);
 
 /**
  * Get a color from a Lua table or a hexadecimal number.
@@ -129,7 +136,7 @@ videoGetColorHex(lua_State *L, int index);
  * @return the color as RGB structure
  */
 SDL_Color
-videoGetColorRGB(lua_State *L, int index);
+videoGetColorRGB(lua_State* L, int index);
 
 /**
  * Read colors from Lua and sets them to the colors array as SDL_Color
@@ -140,7 +147,7 @@ videoGetColorRGB(lua_State *L, int index);
  * @param colors the sequence of colors
  */
 int
-videoGetColorsRGB(lua_State *L, int index, Array *colors);
+videoGetColorsRGB(lua_State* L, int index, Array* colors);
 
 /**
  * Push a SDL_Color as a table with three fields r, g, b to Lua.
@@ -149,7 +156,7 @@ videoGetColorsRGB(lua_State *L, int index, Array *colors);
  * @param color the color
  */
 void
-videoPushColorRGB(lua_State *L, const SDL_Color *color);
+videoPushColorRGB(lua_State* L, const SDL_Color* color);
 
 /**
  * Push a SDL_Color as a hexadecimal integer in ARGB8888 format to Lua.
@@ -158,7 +165,7 @@ videoPushColorRGB(lua_State *L, const SDL_Color *color);
  * @param color the color
  */
 void
-videoPushColorHex(lua_State *L, const SDL_Color *color);
+videoPushColorHex(lua_State* L, const SDL_Color* color);
 
 /**
  * Get a SDL_DisplayMode from a Lua table. Raises an error if
@@ -169,7 +176,7 @@ videoPushColorHex(lua_State *L, const SDL_Color *color);
  * @param mode the destination vaule
  */
 void
-videoGetDisplayMode(lua_State *L, int idx, SDL_DisplayMode *mode);
+videoGetDisplayMode(lua_State* L, int idx, SDL_VideoInfo* vi);
 
 /**
  * Push a SDL_DisplayMode as a table.
@@ -178,6 +185,6 @@ videoGetDisplayMode(lua_State *L, int idx, SDL_DisplayMode *mode);
  * @param mode the mode
  */
 void
-videoPushDisplayMode(lua_State *L, const SDL_DisplayMode *mode);
+videoPushDisplayMode(lua_State* L, const SDL_VideoInfo* vi);
 
 #endif /* !_VIDEO_H_ */

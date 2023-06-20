@@ -34,16 +34,16 @@
  *	The error message
  */
 static int
-l_joystickOpen(lua_State *L)
+l_joystickOpen(lua_State* L)
 {
-	int index = luaL_checkinteger(L, 1);
-	SDL_Joystick *j;
+  int index = luaL_checkinteger(L, 1);
+  SDL_Joystick* j;
 
-	j = SDL_JoystickOpen(index);
-	if (j == NULL)
-		return commonPushSDLError(L, 1);
+  j = SDL_JoystickOpen(index);
+  if (j == NULL)
+    return commonPushSDLError(L, 1);
 
-	return commonPush(L, "p", JoystickName, j);
+  return commonPush(L, "p", JoystickName, j);
 }
 
 #if SDL_VERSION_ATLEAST(2, 0, 4)
@@ -57,18 +57,18 @@ l_joystickOpen(lua_State *L)
  *	the joystick object or nil on failure
  *	The error message
  */
- static int
- l_joystickFromInstanceID(lua_State *L)
- {
-	 int id = luaL_checkinteger(L, 1);
-	 SDL_Joystick *j;
+static int
+l_joystickFromInstanceID(lua_State* L)
+{
+  int id = luaL_checkinteger(L, 1);
+  SDL_Joystick* j;
 
-	 j = SDL_JoystickFromInstanceID(id);
-	 if (j == NULL)
-	 return commonPushSDLError(L, 1);
+  j = SDL_JoystickFromInstanceID(id);
+  if (j == NULL)
+    return commonPushSDLError(L, 1);
 
-	 return commonPush(L, "p", JoystickName, j);
- }
+  return commonPush(L, "p", JoystickName, j);
+}
 #endif
 
 /*
@@ -82,16 +82,16 @@ l_joystickOpen(lua_State *L)
  *	The error message
  */
 static int
-l_joystickEventState(lua_State *L)
+l_joystickEventState(lua_State* L)
 {
-	int state = luaL_checkinteger(L, 1);
-	int ret;
+  int state = luaL_checkinteger(L, 1);
+  int ret;
 
-	ret = SDL_JoystickEventState(state);
-	if (ret < 0)
-		return commonPushSDLError(L, 1);
+  ret = SDL_JoystickEventState(state);
+  if (ret < 0)
+    return commonPushSDLError(L, 1);
 
-	return commonPush(L, "i", ret);
+  return commonPush(L, "i", ret);
 }
 
 /*
@@ -102,81 +102,57 @@ l_joystickEventState(lua_State *L)
  *	The error message
  */
 static int
-l_numJoysticks(lua_State *L)
+l_numJoysticks(lua_State* L)
 {
-	int ret = SDL_NumJoysticks();
+  int ret = SDL_NumJoysticks();
 
-	if (ret < 0)
-		return commonPushSDLError(L, 1);
+  if (ret < 0)
+    return commonPushSDLError(L, 1);
 
-	return commonPush(L, "i", ret);
-}
-
-/*
- * SDL.joystickNameForIndex(index)
- *
- * Arguments:
- *	index the joystick index
- *
- * Returns:
- *	The name or nil on failure
- *	The error message
- */
-static int
-l_joystickNameForIndex(lua_State *L)
-{
-	int index = luaL_checkinteger(L, 1);
-	const char *name;
-
-	name = SDL_JoystickNameForIndex(index);
-	if (name == NULL)
-		return commonPushSDLError(L, 1);
-
-	return commonPush(L, "s", name);
+  return commonPush(L, "i", ret);
 }
 
 /*
  * SDL.joystickUpdate()
  */
 static int
-l_joystickUpdate(lua_State *L)
+l_joystickUpdate(lua_State* L)
 {
-	SDL_JoystickUpdate();
+  SDL_JoystickUpdate();
 
-	(void)L;
+  (void)L;
 
-	return 0;
+  return 0;
 }
 
 const luaL_Reg JoystickFunctions[] = {
-	{ "joystickOpen",		l_joystickOpen			},
+  { "joystickOpen", l_joystickOpen },
 #if SDL_VERSION_ATLEAST(2, 0, 4)
-	{ "joystickFromInstanceID",	l_joystickFromInstanceID	},
+  { "joystickFromInstanceID", l_joystickFromInstanceID },
 #endif
-	{ "joystickEventState",		l_joystickEventState		},
-	{ "numJoysticks",		l_numJoysticks			},
-	{ "joystickNameForIndex",	l_joystickNameForIndex		},
-	{ "joystickUpdate",		l_joystickUpdate		},
-	{ NULL,				NULL				}
+  { "joystickEventState", l_joystickEventState },
+  { "numJoysticks", l_numJoysticks },
+  { "joystickUpdate", l_joystickUpdate },
+  { NULL, NULL }
 };
 
 /* --------------------------------------------------------
  * Joystick object private helpers
  * -------------------------------------------------------- */
 
-typedef int (NumFunc)(SDL_Joystick *);
+typedef int(NumFunc)(SDL_Joystick*);
 
 static int
-joystickGetNum(lua_State *L, NumFunc func)
+joystickGetNum(lua_State* L, NumFunc func)
 {
-	SDL_Joystick *j = commonGetAs(L, 1, JoystickName, SDL_Joystick *);
-	int value;
+  SDL_Joystick* j = commonGetAs(L, 1, JoystickName, SDL_Joystick*);
+  int value;
 
-	value = func(j);
-	if (value < 0)
-		return commonPushSDLError(L, 1);
+  value = func(j);
+  if (value < 0)
+    return commonPushSDLError(L, 1);
 
-	return commonPush(L, "i", value);
+  return commonPush(L, "i", value);
 }
 
 /* --------------------------------------------------------
@@ -184,40 +160,21 @@ joystickGetNum(lua_State *L, NumFunc func)
  * -------------------------------------------------------- */
 
 /*
- * Joystick:currentPowerlevel()
- *
- * Returns:
- *	The current powerlevel of the joystick, or SDL.joystickPowerLevel.Unknown if unknown
- *	An error message if unknown
- */
-static int
-l_joystick_currentPowerLevel(lua_State *L)
-{
-	SDL_Joystick *j = commonGetAs(L, 1, JoystickName, SDL_Joystick *);
-	SDL_JoystickPowerLevel pl;
-
-	if ((pl = SDL_JoystickCurrentPowerLevel(j)) == SDL_JOYSTICK_POWER_UNKNOWN)
-		return commonPush(L, "is", pl, SDL_GetError());
-
-	return commonPush(L, "i", pl);
-}
-
-/*
  * Joystick:getAttached()
  *
  * Returns:
  *	True if attached
  */
-static int
-l_joystick_getAttached(lua_State *L)
+/*static int
+l_joystick_getAttached(lua_State* L)
 {
-	SDL_Joystick *j = commonGetAs(L, 1, JoystickName, SDL_Joystick *);
+  SDL_Joystick* j = commonGetAs(L, 1, JoystickName, SDL_Joystick*);
 
-	if (!SDL_JoystickGetAttached(j))
-		return commonPushSDLError(L, 1);
+  if (!SDL_JoystickGetAttached(j))
+    return commonPushSDLError(L, 1);
 
-	return commonPush(L, "b", 1);
-}
+  return commonPush(L, "b", 1);
+}*/
 
 /*
  * Joystick:getAxis(axis)
@@ -229,12 +186,12 @@ l_joystick_getAttached(lua_State *L)
  *	The value
  */
 static int
-l_joystick_getAxis(lua_State *L)
+l_joystick_getAxis(lua_State* L)
 {
-	SDL_Joystick *j = commonGetAs(L, 1, JoystickName, SDL_Joystick *);
-	int axis	= luaL_checkinteger(L, 2);
+  SDL_Joystick* j = commonGetAs(L, 1, JoystickName, SDL_Joystick*);
+  int axis = luaL_checkinteger(L, 2);
 
-	return commonPush(L, "i", SDL_JoystickGetAxis(j, axis));
+  return commonPush(L, "i", SDL_JoystickGetAxis(j, axis));
 }
 
 /*
@@ -248,16 +205,16 @@ l_joystick_getAxis(lua_State *L)
  *	The y
  */
 static int
-l_joystick_getBall(lua_State *L)
+l_joystick_getBall(lua_State* L)
 {
-	SDL_Joystick *j = commonGetAs(L, 1, JoystickName, SDL_Joystick *);
-	int ball	= luaL_checkinteger(L, 2);
-	int dx, dy;
+  SDL_Joystick* j = commonGetAs(L, 1, JoystickName, SDL_Joystick*);
+  int ball = luaL_checkinteger(L, 2);
+  int dx, dy;
 
-	if (SDL_JoystickGetBall(j, ball, &dx, &dy) < 0)
-		return commonPushSDLError(L, 2);
+  if (SDL_JoystickGetBall(j, ball, &dx, &dy) < 0)
+    return commonPushSDLError(L, 2);
 
-	return commonPush(L, "ii", dx, dy);
+  return commonPush(L, "ii", dx, dy);
 }
 
 /*
@@ -270,12 +227,12 @@ l_joystick_getBall(lua_State *L)
  *	The value
  */
 static int
-l_joystick_getButton(lua_State *L)
+l_joystick_getButton(lua_State* L)
 {
-	SDL_Joystick *j = commonGetAs(L, 1, JoystickName, SDL_Joystick *);
-	int button	= luaL_checkinteger(L, 2);
+  SDL_Joystick* j = commonGetAs(L, 1, JoystickName, SDL_Joystick*);
+  int button = luaL_checkinteger(L, 2);
 
-	return commonPush(L, "b", SDL_JoystickGetButton(j, button));
+  return commonPush(L, "b", SDL_JoystickGetButton(j, button));
 }
 
 /*
@@ -288,13 +245,12 @@ l_joystick_getButton(lua_State *L)
  *	The value (SDL.joyHat)
  */
 static int
-l_joystick_getHat(lua_State *L)
+l_joystick_getHat(lua_State* L)
 {
-	SDL_Joystick *j = commonGetAs(L, 1, JoystickName, SDL_Joystick *);
-	int button	= luaL_checkinteger(L, 2);
+  SDL_Joystick* j = commonGetAs(L, 1, JoystickName, SDL_Joystick*);
+  int button = luaL_checkinteger(L, 2);
 
-	return commonPush(L, "i", SDL_JoystickGetHat(j, button));
-
+  return commonPush(L, "i", SDL_JoystickGetHat(j, button));
 }
 
 /*
@@ -303,13 +259,13 @@ l_joystick_getHat(lua_State *L)
  * Returns:
  *	The id
  */
-static int
-l_joystick_instanceID(lua_State *L)
+/*static int
+l_joystick_instanceID(lua_State* L)
 {
-	SDL_Joystick *j = commonGetAs(L, 1, JoystickName, SDL_Joystick *);
+  SDL_Joystick* j = commonGetAs(L, 1, JoystickName, SDL_Joystick*);
 
-	return commonPush(L, "i", SDL_JoystickInstanceID(j));
-}
+  return commonPush(L, "i", SDL_JoystickInstanceID(j));
+}*/
 
 /*
  * Joystick:name()
@@ -319,16 +275,17 @@ l_joystick_instanceID(lua_State *L)
  *	The error message
  */
 static int
-l_joystick_name(lua_State *L)
+l_joystick_name(lua_State* L)
 {
-	SDL_Joystick *j = commonGetAs(L, 1, JoystickName, SDL_Joystick *);
-	const char *name;
+  SDL_Joystick* j = commonGetAs(L, 1, JoystickName, SDL_Joystick*);
+  const char* name;
 
-	name = SDL_JoystickName(j);
-	if (name == NULL)
-		return commonPushSDLError(L, 1);
+  int idx = SDL_JoystickIndex(j);
+  name = SDL_JoystickName(idx);
+  if (name == NULL)
+    return commonPushSDLError(L, 1);
 
-	return commonPush(L, "s", name);
+  return commonPush(L, "s", name);
 }
 
 /*
@@ -339,9 +296,9 @@ l_joystick_name(lua_State *L)
  *	The error message
  */
 static int
-l_joystick_numAxes(lua_State *L)
+l_joystick_numAxes(lua_State* L)
 {
-	return joystickGetNum(L, SDL_JoystickNumAxes);
+  return joystickGetNum(L, SDL_JoystickNumAxes);
 }
 
 /*
@@ -352,9 +309,9 @@ l_joystick_numAxes(lua_State *L)
  *	The error message
  */
 static int
-l_joystick_numBalls(lua_State *L)
+l_joystick_numBalls(lua_State* L)
 {
-	return joystickGetNum(L, SDL_JoystickNumBalls);
+  return joystickGetNum(L, SDL_JoystickNumBalls);
 }
 
 /*
@@ -365,9 +322,9 @@ l_joystick_numBalls(lua_State *L)
  *	The error message
  */
 static int
-l_joystick_numButtons(lua_State *L)
+l_joystick_numButtons(lua_State* L)
 {
-	return joystickGetNum(L, SDL_JoystickNumButtons);
+  return joystickGetNum(L, SDL_JoystickNumButtons);
 }
 
 /*
@@ -377,9 +334,9 @@ l_joystick_numButtons(lua_State *L)
  *	The number of hats or nil on failure
  */
 static int
-l_joystick_numHats(lua_State *L)
+l_joystick_numHats(lua_State* L)
 {
-	return joystickGetNum(L, SDL_JoystickNumHats);
+  return joystickGetNum(L, SDL_JoystickNumHats);
 }
 
 /* --------------------------------------------------------
@@ -390,59 +347,58 @@ l_joystick_numHats(lua_State *L)
  * Joystick:__eq()
  */
 static int
-l_joystick_eq(lua_State *L)
+l_joystick_eq(lua_State* L)
 {
-	SDL_Joystick *j1 = commonGetAs(L, 1, JoystickName, SDL_Joystick *);
-	SDL_Joystick *j2 = commonGetAs(L, 1, JoystickName, SDL_Joystick *);
+  SDL_Joystick* j1 = commonGetAs(L, 1, JoystickName, SDL_Joystick*);
+  SDL_Joystick* j2 = commonGetAs(L, 1, JoystickName, SDL_Joystick*);
 
-	return commonPush(L, "b", j1 == j2);
+  return commonPush(L, "b", j1 == j2);
 }
 
 /*
  * Joystick:__gc()
  */
 static int
-l_joystick_gc(lua_State *L)
+l_joystick_gc(lua_State* L)
 {
-	CommonUserdata *udata = commonGetUserdata(L, 1, JoystickName);
+  CommonUserdata* udata = commonGetUserdata(L, 1, JoystickName);
 
-	if (udata->mustdelete)
-		SDL_JoystickClose(udata->data);
+  if (udata->mustdelete)
+    SDL_JoystickClose(udata->data);
 
-	return 0;
+  return 0;
 }
 
 /*
  * Joystick:__tostring()
  */
 static int
-l_joystick_tostring(lua_State *L)
+l_joystick_tostring(lua_State* L)
 {
-	SDL_Joystick *j = commonGetAs(L, 1, JoystickName, SDL_Joystick *);
-	SDL_JoystickID id;
-	const char *name;
-	const char *attached;
+  SDL_Joystick* j = commonGetAs(L, 1, JoystickName, SDL_Joystick*);
+  const char* name;
+  // const char* attached;
 
-	id = SDL_JoystickInstanceID(j);
+  int idx = SDL_JoystickIndex(j);
 
-	/* Has a name? */
-	name = SDL_JoystickName(j);
-	if (name == NULL)
-		name = "Unknown";
+  /* Has a name? */
+  name = SDL_JoystickName(idx);
+  if (name == NULL)
+    name = "Unknown";
 
-	attached = SDL_JoystickGetAttached(j) == 0 ? "false" : "true";
+  // attached = SDL_JoystickGetAttached(j) == 0 ? "false" : "true";
 
-	lua_pushfstring(L, "joystick %d: \"%s\" attached: %s, axes: %d, buttons: %d, balls: %d, hats: %d",
-	    id,
-	    name,
-	    attached,
-	    SDL_JoystickNumAxes(j),
-	    SDL_JoystickNumButtons(j),
-	    SDL_JoystickNumBalls(j),
-	    SDL_JoystickNumHats(j)
-	);
+  lua_pushfstring(L,
+                  "joystick %d: \"%s\" axes: %d, buttons: %d, "
+                  "balls: %d, hats: %d",
+                  idx,
+                  name,
+                  SDL_JoystickNumAxes(j),
+                  SDL_JoystickNumButtons(j),
+                  SDL_JoystickNumBalls(j),
+                  SDL_JoystickNumHats(j));
 
-	return 1;
+  return 1;
 }
 
 /* --------------------------------------------------------
@@ -450,64 +406,56 @@ l_joystick_tostring(lua_State *L)
  * -------------------------------------------------------- */
 
 static const luaL_Reg JoystickMethods[] = {
-#if SDL_VERSION_ATLEAST(2, 0, 4)
-	{ "currentPowerlevel",		l_joystick_currentPowerLevel	},
-#endif
-	{ "getAttached",		l_joystick_getAttached		},
-	{ "getAxis",			l_joystick_getAxis		},
-	{ "getBall",			l_joystick_getBall		},
-	{ "getButton",			l_joystick_getButton		},
-	{ "getHat",			l_joystick_getHat		},
-	{ "instanceID",			l_joystick_instanceID		},
-	{ "name",			l_joystick_name			},
-	{ "numAxes",			l_joystick_numAxes		},
-	{ "numBalls",			l_joystick_numBalls		},
-	{ "numButtons",			l_joystick_numButtons		},
-	{ "numHats",			l_joystick_numHats		},
-	{ NULL,				NULL				}
+  /*{ "getAttached", l_joystick_getAttached },*/
+  { "getAxis", l_joystick_getAxis },
+  { "getBall", l_joystick_getBall },
+  { "getButton", l_joystick_getButton },
+  { "getHat", l_joystick_getHat },
+  /*{ "instanceID", l_joystick_instanceID },*/
+  { "name", l_joystick_name },
+  { "numAxes", l_joystick_numAxes },
+  { "numBalls", l_joystick_numBalls },
+  { "numButtons", l_joystick_numButtons },
+  { "numHats", l_joystick_numHats },
+  { NULL, NULL }
 };
 
-static const luaL_Reg JoystickMetamethods[] = {
-	{ "__eq",			l_joystick_eq			},
-	{ "__gc",			l_joystick_gc			},
-	{ "__tostring",			l_joystick_tostring		},
-	{ NULL,				NULL				}
-};
+static const luaL_Reg JoystickMetamethods[] = { { "__eq", l_joystick_eq },
+                                                { "__gc", l_joystick_gc },
+                                                { "__tostring",
+                                                  l_joystick_tostring },
+                                                { NULL, NULL } };
 
-const CommonObject Joystick = {
-	"Joystick",
-	JoystickMethods,
-	JoystickMetamethods
-};
+const CommonObject Joystick = { "Joystick",
+                                JoystickMethods,
+                                JoystickMetamethods };
 
 /*
  * SDL.joyHat
  */
-const CommonEnum EventJoyHat[] = {
-	{ "Left",	SDL_HAT_LEFT		},
-	{ "LeftUp",	SDL_HAT_LEFTUP		},
-	{ "Up",		SDL_HAT_UP		},
-	{ "RightUp",	SDL_HAT_RIGHTUP		},
-	{ "Right",	SDL_HAT_RIGHT		},
-	{ "RightDown",	SDL_HAT_RIGHTDOWN	},
-	{ "Down",	SDL_HAT_DOWN		},
-	{ "LeftDown",	SDL_HAT_LEFTDOWN	},
-	{ "Centered",	SDL_HAT_CENTERED	},
-	{ NULL,		-1			}
-};
+const CommonEnum EventJoyHat[] = { { "Left", SDL_HAT_LEFT },
+                                   { "LeftUp", SDL_HAT_LEFTUP },
+                                   { "Up", SDL_HAT_UP },
+                                   { "RightUp", SDL_HAT_RIGHTUP },
+                                   { "Right", SDL_HAT_RIGHT },
+                                   { "RightDown", SDL_HAT_RIGHTDOWN },
+                                   { "Down", SDL_HAT_DOWN },
+                                   { "LeftDown", SDL_HAT_LEFTDOWN },
+                                   { "Centered", SDL_HAT_CENTERED },
+                                   { NULL, -1 } };
 
 #if SDL_VERSION_ATLEAST(2, 0, 4)
 /*
  * SDL.joystickPowerLevel
  */
 const CommonEnum JoystickPowerLevels[] = {
-	{ "Unknown",	SDL_JOYSTICK_POWER_UNKNOWN	},
-	{ "Empty",	SDL_JOYSTICK_POWER_EMPTY	},
-	{ "Low",	SDL_JOYSTICK_POWER_LOW		},
-	{ "Medium",	SDL_JOYSTICK_POWER_MEDIUM	},
-	{ "Full",	SDL_JOYSTICK_POWER_FULL		},
-	{ "Wired",	SDL_JOYSTICK_POWER_WIRED	},
-	{ "Max",	SDL_JOYSTICK_POWER_MAX		},
-	{ NULL,		-1				}
+  { "Unknown", SDL_JOYSTICK_POWER_UNKNOWN },
+  { "Empty", SDL_JOYSTICK_POWER_EMPTY },
+  { "Low", SDL_JOYSTICK_POWER_LOW },
+  { "Medium", SDL_JOYSTICK_POWER_MEDIUM },
+  { "Full", SDL_JOYSTICK_POWER_FULL },
+  { "Wired", SDL_JOYSTICK_POWER_WIRED },
+  { "Max", SDL_JOYSTICK_POWER_MAX },
+  { NULL, -1 }
 };
 #endif

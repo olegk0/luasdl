@@ -2,7 +2,7 @@
 -- client.lua -- send "Hello" to a server using SDL_net
 --
 
-local net	= require "SDL.net"
+local net	= require "SDL1.net"
 
 -- Init net
 net.init()

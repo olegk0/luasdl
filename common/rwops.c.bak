@@ -34,7 +34,7 @@
 
 typedef struct
 {
-  int size;  /*! size ref */
+  // int size;  /*! size ref */
   int seek;  /*! seek ref */
   int read;  /*! read ref */
   int write; /*! write ref */
@@ -44,59 +44,55 @@ typedef struct
 typedef struct
 {
   Funcs opsref;
-  lua_State* L;
+  lua_State* lua_state;
 } HiddenData;
+
 /*
-static Sint64
+static int
 rw_size(SDL_RWops* ops)
 {
   HiddenData* hd = ops->hidden.unknown.data1;
-  Funcs* opsref = &hd->opsref;
-  lua_State* L = hd->L;
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, opsref->size);
-  lua_call(L, 0, 1);
+  lua_rawgeti(hd->lua_state, LUA_REGISTRYINDEX, hd->opsref.size);
+  lua_call(hd->lua_state, 0, 1);
 
-  return lua_tointeger(L, -1);
+  return lua_tointeger(hd->lua_state, -1);
 }
 */
+
 static int
 rw_seek(SDL_RWops* ops, int offset, int whence)
 {
   HiddenData* hd = ops->hidden.unknown.data1;
-  Funcs* opsref = &hd->opsref;
-  lua_State* L = hd->L;
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, opsref->seek);
-  lua_pushinteger(L, (int)offset);
-  lua_pushinteger(L, whence);
-  lua_call(L, 2, 1);
+  lua_rawgeti(hd->lua_state, LUA_REGISTRYINDEX, hd->opsref.seek);
+  lua_pushinteger(hd->lua_state, (int)offset);
+  lua_pushinteger(hd->lua_state, whence);
+  lua_call(hd->lua_state, 2, 1);
 
-  return lua_tointeger(L, -1);
+  return lua_tointeger(hd->lua_state, -1);
 }
 
 static int
 rw_read(SDL_RWops* ops, void* dst, int size, int num)
 {
   HiddenData* hd = ops->hidden.unknown.data1;
-  Funcs* opsref = &hd->opsref;
-  lua_State* L = hd->L;
   int nbytes = 0;
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, opsref->read);
-  lua_pushinteger(L, size);
-  lua_pushinteger(L, num);
-  lua_call(L, 2, 2);
+  lua_rawgeti(hd->lua_state, LUA_REGISTRYINDEX, hd->opsref.read);
+  lua_pushinteger(hd->lua_state, size);
+  lua_pushinteger(hd->lua_state, num);
+  lua_call(hd->lua_state, 2, 2);
 
   /* Use the content as a string */
-  if (lua_type(L, -1) == LUA_TNUMBER) {
+  if (lua_type(hd->lua_state, -1) == LUA_TNUMBER) {
     const char* data;
 
     /* Retrieve length or 0 on error or EOF */
-    nbytes = lua_tointeger(L, -1);
+    nbytes = lua_tointeger(hd->lua_state, -1);
 
     if (nbytes != EOF && nbytes > 0) {
-      data = lua_tostring(L, -2);
+      data = lua_tostring(hd->lua_state, -2);
       memcpy(dst, data, nbytes);
     }
   }
@@ -108,29 +104,27 @@ static int
 rw_write(SDL_RWops* ops, const void* data, int num, int size)
 {
   HiddenData* hd = ops->hidden.unknown.data1;
-  Funcs* opsref = &hd->opsref;
-  lua_State* L = hd->L;
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, opsref->write);
-  lua_pushlstring(L, data, num * size);
-  lua_pushinteger(L, num);
-  lua_pushinteger(L, size);
-  lua_call(L, 3, 1);
+  lua_rawgeti(hd->lua_state, LUA_REGISTRYINDEX, hd->opsref.write);
+  lua_pushlstring(hd->lua_state, data, num * size);
+  lua_pushinteger(hd->lua_state, num);
+  lua_pushinteger(hd->lua_state, size);
+  lua_call(hd->lua_state, 3, 1);
 
-  return lua_tointeger(L, 1);
+  return lua_tointeger(hd->lua_state, 1);
 }
 
 static int
 rw_close(SDL_RWops* ops)
 {
   HiddenData* hd = ops->hidden.unknown.data1;
-  Funcs* opsref = &hd->opsref;
-  lua_State* L = hd->L;
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, opsref->close);
-  lua_call(L, 0, 0);
+  lua_rawgeti(hd->lua_state, LUA_REGISTRYINDEX, hd->opsref.close);
+  lua_call(hd->lua_state, 0, 0);
 
-  return (lua_type(L, -1) == LUA_TNUMBER) ? lua_tointeger(L, -1) : 0;
+  return (lua_type(hd->lua_state, -1) == LUA_TNUMBER)
+           ? lua_tointeger(hd->lua_state, -1)
+           : 0;
 }
 
 /*
@@ -152,16 +146,16 @@ rw_close(SDL_RWops* ops)
  *	The error message
  */
 static int
-l_rw_create(lua_State* L)
+l_rw_create(lua_State* lua_state)
 {
 #define FIELD_REF(idx, field, ref)                                             \
   do {                                                                         \
-    lua_getfield(L, idx, field);                                               \
-    if (lua_type(L, -1) != LUA_TFUNCTION)                                      \
+    lua_getfield(lua_state, idx, field);                                       \
+    if (lua_type(lua_state, -1) != LUA_TFUNCTION)                              \
       goto missing;                                                            \
-    lua_pushvalue(L, -1);                                                      \
-    ref = luaL_ref(L, LUA_REGISTRYINDEX);                                      \
-    lua_pop(L, 1);                                                             \
+    lua_pushvalue(lua_state, -1);                                              \
+    ref = luaL_ref(lua_state, LUA_REGISTRYINDEX);                              \
+    lua_pop(lua_state, 1);                                                     \
   } while (/* CONSTCOND */ 0)
 
   SDL_RWops* ops;
@@ -169,29 +163,30 @@ l_rw_create(lua_State* L)
   HiddenData* hd;
 
   /* Only takes a table */
-  luaL_checktype(L, 1, LUA_TTABLE);
+  luaL_checktype(lua_state, 1, LUA_TTABLE);
 
   ops = SDL_AllocRW();
   if (ops == NULL)
-    return commonPushSDLError(L, 1);
+    return commonPushSDLError(lua_state, 1);
 
   hd = malloc(sizeof(HiddenData));
   if (hd == NULL) {
     SDL_FreeRW(ops);
-    return commonPushErrno(L, 1);
+    return commonPushErrno(lua_state, 1);
   }
 
   opsref = &hd->opsref;
 
-  opsref->size = opsref->seek = opsref->read = opsref->write = LUA_REFNIL;
+  // opsref->size = opsref->seek = opsref->read = opsref->write = LUA_REFNIL;
 
   /* Check fields, all are mandatory */
-  FIELD_REF(1, "size", opsref->size);
+  // FIELD_REF(1, "size", opsref->size);
   FIELD_REF(1, "seek", opsref->seek);
   FIELD_REF(1, "read", opsref->read);
   FIELD_REF(1, "write", opsref->write);
   FIELD_REF(1, "close", opsref->close);
 
+  ops->type = SDL_RWOPS_UNKNOWN;
   /* Use our callback to call Lua functions */
   // ops->size = rw_size;
   ops->seek = rw_seek;
@@ -199,25 +194,26 @@ l_rw_create(lua_State* L)
   ops->write = rw_write;
   ops->close = rw_close;
   ops->hidden.unknown.data1 = hd;
+  // ops->hidden.unknown.data2 = lua_state;
 
-  return commonPush(L, "p", RWOpsName, ops);
+  return commonPush(lua_state, "p", RWOpsName, ops);
 
 missing:
   SDL_SetError("invalid table given");
 
-  if (opsref->size != LUA_REFNIL)
-    luaL_unref(L, LUA_REGISTRYINDEX, opsref->size);
+  // if (opsref->size != LUA_REFNIL)
+  //   luaL_unref(lua_state, LUA_REGISTRYINDEX, opsref->size);
   if (opsref->seek != LUA_REFNIL)
-    luaL_unref(L, LUA_REGISTRYINDEX, opsref->seek);
+    luaL_unref(lua_state, LUA_REGISTRYINDEX, opsref->seek);
   if (opsref->read != LUA_REFNIL)
-    luaL_unref(L, LUA_REGISTRYINDEX, opsref->read);
+    luaL_unref(lua_state, LUA_REGISTRYINDEX, opsref->read);
   if (opsref->write != LUA_REFNIL)
-    luaL_unref(L, LUA_REGISTRYINDEX, opsref->write);
+    luaL_unref(lua_state, LUA_REGISTRYINDEX, opsref->write);
 
   SDL_FreeRW(ops);
   free(hd);
 
-  return commonPushSDLError(L, 1);
+  return commonPushSDLError(lua_state, 1);
 }
 
 /*
@@ -232,17 +228,17 @@ missing:
  *	The error message
  */
 static int
-l_rw_fromFile(lua_State* L)
+l_rw_fromFile(lua_State* lua_state)
 {
-  const char* file = luaL_checkstring(L, 1);
-  const char* mode = luaL_checkstring(L, 2);
+  const char* file = luaL_checkstring(lua_state, 1);
+  const char* mode = luaL_checkstring(lua_state, 2);
   SDL_RWops* ops;
 
   ops = SDL_RWFromFile(file, mode);
   if (ops == NULL)
-    return commonPushSDLError(L, 1);
+    return commonPushSDLError(lua_state, 1);
 
-  return commonPush(L, "p", RWOpsName, ops);
+  return commonPush(lua_state, "p", RWOpsName, ops);
 }
 
 /* --------------------------------------------------------
@@ -272,49 +268,49 @@ typedef enum action
 typedef int (*ConvFunc)(lua_State*, SDL_RWops*, Endian);
 
 static int
-rw_read16(lua_State* L, SDL_RWops* ops, Endian endian)
+rw_read16(lua_State* lua_state, SDL_RWops* ops, Endian endian)
 {
   Uint16 b = (endian == Big) ? SDL_ReadBE16(ops) : SDL_ReadLE16(ops);
 
-  return commonPush(L, "i", b);
+  return commonPush(lua_state, "i", b);
 }
 
 static int
-rw_read32(lua_State* L, SDL_RWops* ops, Endian endian)
+rw_read32(lua_State* lua_state, SDL_RWops* ops, Endian endian)
 {
   Uint32 b = (endian == Big) ? SDL_ReadBE32(ops) : SDL_ReadLE32(ops);
 
-  return commonPush(L, "i", b);
+  return commonPush(lua_state, "i", b);
 }
 
 static int
-rw_write16(lua_State* L, SDL_RWops* ops, Endian endian)
+rw_write16(lua_State* lua_state, SDL_RWops* ops, Endian endian)
 {
-  Uint16 b = luaL_checkinteger(L, 2);
+  Uint16 b = luaL_checkinteger(lua_state, 2);
   size_t nr;
 
   nr = (endian == Big) ? SDL_WriteBE16(ops, b) : SDL_WriteLE16(ops, b);
   if (nr == 0)
-    return commonPushSDLError(L, 1);
+    return commonPushSDLError(lua_state, 1);
 
-  return commonPush(L, "b", 1);
+  return commonPush(lua_state, "b", 1);
 }
 
 static int
-rw_write32(lua_State* L, SDL_RWops* ops, Endian endian)
+rw_write32(lua_State* lua_state, SDL_RWops* ops, Endian endian)
 {
-  Uint32 b = luaL_checkinteger(L, 2);
+  Uint32 b = luaL_checkinteger(lua_state, 2);
   size_t nr;
 
   nr = (endian == Big) ? SDL_WriteBE32(ops, b) : SDL_WriteLE32(ops, b);
   if (nr == 0)
-    return commonPushSDLError(L, 1);
+    return commonPushSDLError(lua_state, 1);
 
-  return commonPush(L, "b", 1);
+  return commonPush(lua_state, "b", 1);
 }
 
 static void
-rw_readparams(lua_State* L,
+rw_readparams(lua_State* lua_state,
               Action action,
               int size,
               const char* mode,
@@ -330,7 +326,7 @@ rw_readparams(lua_State* L,
     *func = NULL;
 
   if (*func == NULL)
-    (void)luaL_error(L, "invalid size given %d", size);
+    (void)luaL_error(lua_state, "invalid size given %d", size);
 
   /* Retrieve the endian mode */
   if (strcmp(mode, "BE") == 0)
@@ -341,7 +337,7 @@ rw_readparams(lua_State* L,
     *endian = 0;
 
   if (*endian == 0)
-    (void)luaL_error(L, "invalid endian mode %s", mode);
+    (void)luaL_error(lua_state, "invalid endian mode %s", mode);
 }
 
 /* --------------------------------------------------------
@@ -352,14 +348,14 @@ rw_readparams(lua_State* L,
  * RWOps:close()
  */
 static int
-l_rw_close(lua_State* L)
+l_rw_close(lua_State* lua_state)
 {
-  SDL_RWops* ops = commonGetAs(L, 1, RWOpsName, SDL_RWops*);
+  SDL_RWops* ops = commonGetAs(lua_state, 1, RWOpsName, SDL_RWops*);
 
   if (SDL_RWclose(ops) < 0)
-    return commonPushSDLError(L, 1);
+    return commonPushSDLError(lua_state, 1);
 
-  return commonPush(L, "b", 1);
+  return commonPush(lua_state, "b", 1);
 }
 
 /*
@@ -374,25 +370,25 @@ l_rw_close(lua_State* L)
  *	The error message
  */
 static int
-l_rw_read(lua_State* L)
+l_rw_read(lua_State* lua_state)
 {
-  SDL_RWops* ops = commonGetAs(L, 1, RWOpsName, SDL_RWops*);
-  size_t size = luaL_checkinteger(L, 2);
-  size_t num = luaL_checkinteger(L, 3);
+  SDL_RWops* ops = commonGetAs(lua_state, 1, RWOpsName, SDL_RWops*);
+  size_t size = luaL_checkinteger(lua_state, 2);
+  size_t num = luaL_checkinteger(lua_state, 3);
   size_t nread;
   int nret;
   void* ptr;
 
   if ((ptr = malloc(size * num)) == NULL)
-    return commonPushErrno(L, 1);
+    return commonPushErrno(lua_state, 1);
 
   nread = SDL_RWread(ops, ptr, size, num);
 
   if (nread == 0)
-    nret = commonPush(L, "nis", nread, SDL_GetError());
+    nret = commonPush(lua_state, "nis", nread, SDL_GetError());
   else {
-    lua_pushlstring(L, ptr, nread * size);
-    lua_pushinteger(L, nread);
+    lua_pushlstring(lua_state, ptr, nread * size);
+    lua_pushinteger(lua_state, nread);
 
     nret = 2;
   }
@@ -413,17 +409,17 @@ l_rw_read(lua_State* L)
  *	The byte read
  */
 static int
-l_rw_readByte(lua_State* L)
+l_rw_readByte(lua_State* lua_state)
 {
-  SDL_RWops* ops = commonGetAs(L, 1, RWOpsName, SDL_RWops*);
-  int size = luaL_checkinteger(L, 2);
-  const char* mode = luaL_checkstring(L, 3);
+  SDL_RWops* ops = commonGetAs(lua_state, 1, RWOpsName, SDL_RWops*);
+  int size = luaL_checkinteger(lua_state, 2);
+  const char* mode = luaL_checkstring(lua_state, 3);
   Endian endian;
   ConvFunc func;
 
-  rw_readparams(L, Read, size, mode, &func, &endian);
+  rw_readparams(lua_state, Read, size, mode, &func, &endian);
 
-  return func(L, ops, endian);
+  return func(lua_state, ops, endian);
 }
 
 /*
@@ -438,16 +434,16 @@ l_rw_readByte(lua_State* L)
  *	The error message
  */
 static int
-l_rw_seek(lua_State* L)
+l_rw_seek(lua_State* lua_state)
 {
-  SDL_RWops* ops = commonGetAs(L, 1, RWOpsName, SDL_RWops*);
-  Sint64 offset = luaL_checkinteger(L, 2);
-  int whence = luaL_checkinteger(L, 3);
+  SDL_RWops* ops = commonGetAs(lua_state, 1, RWOpsName, SDL_RWops*);
+  int offset = luaL_checkinteger(lua_state, 2);
+  int whence = luaL_checkinteger(lua_state, 3);
 
   if (SDL_RWseek(ops, offset, whence) < 0)
-    return commonPushSDLError(L, 1);
+    return commonPushSDLError(lua_state, 1);
 
-  return commonPush(L, "b", 1);
+  return commonPush(lua_state, "b", 1);
 }
 
 /*
@@ -457,11 +453,11 @@ l_rw_seek(lua_State* L)
  *	The current offset
  */
 static int
-l_rw_tell(lua_State* L)
+l_rw_tell(lua_State* lua_state)
 {
-  SDL_RWops* ops = commonGetAs(L, 1, RWOpsName, SDL_RWops*);
+  SDL_RWops* ops = commonGetAs(lua_state, 1, RWOpsName, SDL_RWops*);
 
-  return commonPush(L, "l", SDL_RWtell(ops));
+  return commonPush(lua_state, "l", SDL_RWtell(ops));
 }
 
 /*
@@ -475,18 +471,18 @@ l_rw_tell(lua_State* L)
  *	The error message
  */
 static int
-l_rw_write(lua_State* L)
+l_rw_write(lua_State* lua_state)
 {
-  SDL_RWops* ops = commonGetAs(L, 1, RWOpsName, SDL_RWops*);
+  SDL_RWops* ops = commonGetAs(lua_state, 1, RWOpsName, SDL_RWops*);
   size_t length;
-  const char* src = luaL_checklstring(L, 2, &length);
+  const char* src = luaL_checklstring(lua_state, 2, &length);
   int nret, nwritten;
 
   nwritten = SDL_RWwrite(ops, src, length, 1);
   if (nwritten == 0)
-    nret = commonPush(L, "i", nwritten);
+    nret = commonPush(lua_state, "i", nwritten);
   else
-    nret = commonPush(L, "ns", SDL_GetError());
+    nret = commonPush(lua_state, "ns", SDL_GetError());
 
   return nret;
 }
@@ -504,55 +500,52 @@ l_rw_write(lua_State* L)
  *	The error message
  */
 static int
-l_rw_writeByte(lua_State* L)
+l_rw_writeByte(lua_State* lua_state)
 {
-  SDL_RWops* ops = commonGetAs(L, 1, RWOpsName, SDL_RWops*);
-  int size = luaL_checkinteger(L, 3);
-  const char* mode = luaL_checkstring(L, 4);
+  SDL_RWops* ops = commonGetAs(lua_state, 1, RWOpsName, SDL_RWops*);
+  int size = luaL_checkinteger(lua_state, 3);
+  const char* mode = luaL_checkstring(lua_state, 4);
   ConvFunc func;
   Endian endian;
 
-  rw_readparams(L, Write, size, mode, &func, &endian);
+  rw_readparams(lua_state, Write, size, mode, &func, &endian);
 
-  return func(L, ops, endian);
+  return func(lua_state, ops, endian);
 }
 
 /*
  * RWOps:__eq
  */
 static int
-l_rw_eq(lua_State* L)
+l_rw_eq(lua_State* lua_state)
 {
-  SDL_RWops* o1 = commonGetAs(L, 1, RWOpsName, SDL_RWops*);
-  SDL_RWops* o2 = commonGetAs(L, 2, RWOpsName, SDL_RWops*);
+  SDL_RWops* o1 = commonGetAs(lua_state, 1, RWOpsName, SDL_RWops*);
+  SDL_RWops* o2 = commonGetAs(lua_state, 2, RWOpsName, SDL_RWops*);
 
-  return commonPush(L, "b", o1 == o2);
+  return commonPush(lua_state, "b", o1 == o2);
 }
 
 /*
  * RWOps:__gc
  */
 static int
-l_rw_gc(lua_State* L)
+l_rw_gc(lua_State* lua_state)
 {
-  CommonUserdata* udata = commonGetUserdata(L, 1, RWOpsName);
+  CommonUserdata* udata = commonGetUserdata(lua_state, 1, RWOpsName);
 
   if (udata->mustdelete) {
     SDL_RWops* ops = udata->data;
 
-    if (ops->type == SDL_RWOPS_UNKNOWN) {
+    if (ops->type == SDL_RWOPS_UNKNOWN) { // SDL_RWOPS_UNKNOWN
       HiddenData* hd = ops->hidden.unknown.data1;
-      Funcs* opsref = &hd->opsref;
-      // lua_State* L = hd->L;
 
-      luaL_unref(L, LUA_REGISTRYINDEX, opsref->size);
-      luaL_unref(L, LUA_REGISTRYINDEX, opsref->seek);
-      luaL_unref(L, LUA_REGISTRYINDEX, opsref->read);
-      luaL_unref(L, LUA_REGISTRYINDEX, opsref->write);
-      luaL_unref(L, LUA_REGISTRYINDEX, opsref->close);
+      // luaL_unref(lua_state, LUA_REGISTRYINDEX, hd->opsref.size);
+      luaL_unref(lua_state, LUA_REGISTRYINDEX, hd->opsref.seek);
+      luaL_unref(lua_state, LUA_REGISTRYINDEX, hd->opsref.read);
+      luaL_unref(lua_state, LUA_REGISTRYINDEX, hd->opsref.write);
+      luaL_unref(lua_state, LUA_REGISTRYINDEX, hd->opsref.close);
 
       free(hd);
-      ops->hidden.unknown.data1 = NULL;
     }
 
     SDL_FreeRW(ops);
@@ -565,11 +558,11 @@ l_rw_gc(lua_State* L)
  * RWOps:__tostring
  */
 static int
-l_rw_tostring(lua_State* L)
+l_rw_tostring(lua_State* lua_state)
 {
-  SDL_RWops* ops = commonGetAs(L, 1, RWOpsName, SDL_RWops*);
+  SDL_RWops* ops = commonGetAs(lua_state, 1, RWOpsName, SDL_RWops*);
 
-  lua_pushfstring(L, "RWops %p: type %d", ops, ops->type);
+  lua_pushfstring(lua_state, "RWops %p: type %d", ops, ops->type);
 
   return 1;
 }

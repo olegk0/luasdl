@@ -29,4 +29,6 @@ extern const CommonEnum KeyboardScancodes[];
 
 extern const CommonEnum KeyboardModifiers[];
 
+extern const CommonEnum KeyEvType[];
+
 #endif /* !_EVENTS_KEYBOARD_H_ */

@@ -2,7 +2,7 @@
 -- joystick.lua -- joystick management
 --
 
-local SDL	= require "SDL"
+local SDL	= require "SDL1"
 
 local ret, err = SDL.init { SDL.flags.Joystick }
 if not ret then

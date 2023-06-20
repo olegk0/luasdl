@@ -32,8 +32,8 @@ local rdr = trySDL(SDL.createRenderer, win, -1)
 local font = trySDL(ttf.open, "DejaVuSans.ttf", 24)
 
 -- Create some text
-local w, h = trySDL(font.sizeText, "Lua-SDL2", t)
-local s = trySDL(font.renderUtf8, font, "Lua-SDL2", "solid", 0xFFFFFF)
+local w, h = trySDL(font.sizeText, "Lua-SDL", t)
+local s = trySDL(font.renderUtf8, font, "Lua-SDL", "solid", 0xFFFFFF)
 
 -- Convert to texture and show
 local text = trySDL(rdr.createTextureFromSurface, rdr, s)

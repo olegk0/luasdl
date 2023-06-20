@@ -197,7 +197,7 @@ static const luaL_Reg ImageFunctions[] = {
 };
 
 int EXPORT
-luaopen_SDL_image(lua_State *L)
+luaopen_SDL1_image(lua_State *L)
 {
 	/* New SDL.image library */
 	commonNewLibrary(L, ImageFunctions);

@@ -19,10 +19,11 @@
 #include "timer.h"
 #include "thread.h"
 
-typedef struct Timer {
-	SDL_TimerID	 id;
-	lua_State	*L;
-	int		 ref;
+typedef struct Timer
+{
+  SDL_TimerID id;
+  lua_State* L;
+  int ref;
 } Timer;
 
 /*
@@ -32,15 +33,15 @@ typedef struct Timer {
  *	True if deleted
  */
 static int
-l_timer_remove(lua_State *L)
+l_timer_remove(lua_State* L)
 {
-	Timer *t = commonGetAs(L, 1, TimerName, Timer *);
-	int ret;
+  Timer* t = commonGetAs(L, 1, TimerName, Timer*);
+  int ret;
 
-	ret = SDL_RemoveTimer(t->id);
-	t->ref = -1;
+  ret = SDL_RemoveTimer(t->id);
+  t->ref = -1;
 
-	return commonPush(L, "b", ret);
+  return commonPush(L, "b", ret);
 }
 
 /*
@@ -50,65 +51,59 @@ l_timer_remove(lua_State *L)
  *	The timer id
  */
 static int
-l_timer_id(lua_State *L)
+l_timer_id(lua_State* L)
 {
-	Timer *t = commonGetAs(L, 1, TimerName, Timer *);
+  Timer* t = commonGetAs(L, 1, TimerName, Timer*);
 
-	return commonPush(L, "i", t->id);
+  return commonPush(L, "i", t->id);
 }
 
 /*
  * Timer:__gc()
  */
 static int
-l_timer_gc(lua_State *L)
+l_timer_gc(lua_State* L)
 {
-	Timer *t = commonGetAs(L, 1, TimerName, Timer *);
+  Timer* t = commonGetAs(L, 1, TimerName, Timer*);
 
-	if (t->ref > 0)
-		SDL_RemoveTimer(t->id);
+  if (t->ref > 0)
+    SDL_RemoveTimer(t->id);
 
-	lua_close(t->L);
+  lua_close(t->L);
 
-	return 0;
+  return 0;
 }
 
-static const luaL_Reg TimerMethods[] = {
-	{ "remove",			l_timer_remove			},
-	{ "id",				l_timer_id			},
-	{ NULL,				NULL				}
-};
+static const luaL_Reg TimerMethods[] = { { "remove", l_timer_remove },
+                                         { "id", l_timer_id },
+                                         { NULL, NULL } };
 
-static const luaL_Reg TimerMetamethods[] = {
-	{ "__gc",			l_timer_gc			},
-	{ NULL,				NULL				}
-};
+static const luaL_Reg TimerMetamethods[] = { { "__gc", l_timer_gc },
+                                             { NULL, NULL } };
 
-const CommonObject TimerObject = {
-	"Timer",
-	TimerMethods,
-	TimerMetamethods
-};
+const CommonObject TimerObject = { "Timer", TimerMethods, TimerMetamethods };
 
 /* ---------------------------------------------------------
  * Timer helpers
  * --------------------------------------------------------- */
 
 static Uint32
-timerCallback(Uint32 interval, Timer *t)
+timerCallback(Uint32 interval, void* vp)
 {
-	Uint32 v = 0;
+  Timer* t = (Timer*)vp;
+  Uint32 v = 0;
 
-	lua_rawgeti(t->L, LUA_REGISTRYINDEX, t->ref);
-	lua_pushinteger(t->L, interval);
+  lua_rawgeti(t->L, LUA_REGISTRYINDEX, t->ref);
+  lua_pushinteger(t->L, interval);
 
-	if (lua_pcall(t->L, 1, 1, 0) != LUA_OK) {
-		SDL_LogCritical(SDL_LOG_CATEGORY_SYSTEM, "%s", lua_tostring(t->L, -1));
-		lua_pop(t->L, 1);
-	} else if (lua_type(t->L, -1) == LUA_TNUMBER)
-		v = (Uint32)lua_tonumber(t->L, -1);
+  if (lua_pcall(t->L, 1, 1, 0) != LUA_OK) {
+    // SDL_LogCritical(SDL_LOG_CATEGORY_SYSTEM, "%s", lua_tostring(t->L, -1));
+    commonPushSDLError(t->L, 1);
+    lua_pop(t->L, 1);
+  } else if (lua_type(t->L, -1) == LUA_TNUMBER)
+    v = (Uint32)lua_tonumber(t->L, -1);
 
-	return v;
+  return v;
 }
 
 /* ---------------------------------------------------------
@@ -127,38 +122,38 @@ timerCallback(Uint32 interval, Timer *t)
  *	The error message
  */
 static int
-l_addTimer(lua_State *L)
+l_addTimer(lua_State* L)
 {
-	Uint32 interval = luaL_checkinteger(L, 1);
-	Timer *t;
+  Uint32 interval = luaL_checkinteger(L, 1);
+  Timer* t;
 
-	if ((t = calloc(1, sizeof (Timer))) == NULL)
-		return commonPushErrno(L, 1);
+  if ((t = calloc(1, sizeof(Timer))) == NULL)
+    return commonPushErrno(L, 1);
 
-	t->L = luaL_newstate();
-	luaL_openlibs(t->L);
+  t->L = luaL_newstate();
+  luaL_openlibs(t->L);
 
-	/* Dump the function or filepath */
-	if (threadDump(L, t->L, 2) == 2)
-		goto fail;
+  /* Dump the function or filepath */
+  if (threadDump(L, t->L, 2) == 2)
+    goto fail;
 
-	/* Store the function into the ref */
-	t->ref = luaL_ref(t->L, LUA_REGISTRYINDEX);
+  /* Store the function into the ref */
+  t->ref = luaL_ref(t->L, LUA_REGISTRYINDEX);
 
-	/* Create the timer */
-	if ((t->id = SDL_AddTimer(interval, (SDL_TimerCallback)timerCallback, t)) == 0) {
-		commonPushSDLError(L, 1);
-		goto fail;
-	}
+  /* Create the timer */
+  if ((t->id = SDL_AddTimer(interval, timerCallback, t)) == 0) {
+    commonPushSDLError(L, 1);
+    goto fail;
+  }
 
-	return commonPush(L, "p", TimerName, t);
+  return commonPush(L, "p", TimerName, t);
 
 fail:
-	if (t->L)
-		lua_close(t->L);
-	free(t);
+  if (t->L)
+    lua_close(t->L);
+  free(t);
 
-	return 2;
+  return 2;
 }
 
 /*
@@ -168,35 +163,11 @@ fail:
  *	count, the number of milliseconds
  */
 static int
-l_delay(lua_State *L)
+l_delay(lua_State* L)
 {
-	SDL_Delay(luaL_checkinteger(L, 1));
+  SDL_Delay(luaL_checkinteger(L, 1));
 
-	return 0;
-}
-
-/*
- * SDL.getPerformanceCounter()
- *
- * Returns:
- *	The number
- */
-static int
-l_getPerformanceCounter(lua_State *L)
-{
-	return commonPush(L, "i", SDL_GetPerformanceCounter());
-}
-
-/*
- * SDL.getPerformanceFrequency()
- *
- * Returns:
- *	The number
- */
-static int
-l_getPerformanceFrequency(lua_State *L)
-{
-	return commonPush(L, "i", SDL_GetPerformanceFrequency());
+  return 0;
 }
 
 /*
@@ -206,16 +177,12 @@ l_getPerformanceFrequency(lua_State *L)
  *	The ticks
  */
 static int
-l_getTicks(lua_State *L)
+l_getTicks(lua_State* L)
 {
-	return commonPush(L, "i", SDL_GetTicks());
+  return commonPush(L, "i", SDL_GetTicks());
 }
 
-const luaL_Reg TimerFunctions[] = {
-	{ "addTimer",			l_addTimer			},
-	{ "delay",			l_delay				},
-	{ "getPerformanceCounter",	l_getPerformanceCounter		},
-	{ "getPerformanceFrequency",	l_getPerformanceFrequency	},
-	{ "getTicks",			l_getTicks			},
-	{ NULL,				NULL				}
-};
+const luaL_Reg TimerFunctions[] = { { "addTimer", l_addTimer },
+                                    { "delay", l_delay },
+                                    { "getTicks", l_getTicks },
+                                    { NULL, NULL } };

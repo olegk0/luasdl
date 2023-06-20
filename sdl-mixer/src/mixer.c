@@ -983,7 +983,7 @@ static const luaL_Reg MixerFunctions[] = {
 };
 
 int EXPORT
-luaopen_SDL_mixer(lua_State *L)
+luaopen_SDL1_mixer(lua_State *L)
 {
 	commonNewLibrary(L, MixerFunctions);
 

@@ -24,6 +24,7 @@
 #include "rwops.h"
 #include "surface.h"
 #include "video.h"
+#include "table.h"
 
 /* --------------------------------------------------------
  * Surface functions
@@ -44,42 +45,79 @@
  *	The surface or nil
  *	The error message
  */
-static int l_surface_createRGB(lua_State *L)
+static int
+l_surface_createRGB(lua_State* L)
 {
-	int width	= luaL_checkinteger(L, 1);
-	int height	= luaL_checkinteger(L, 2);
-	int depth	= 32;
-	Uint32 rmask, gmask, bmask, amask;
-	SDL_Surface *s;
+  int width = luaL_checkinteger(L, 1);
+  int height = luaL_checkinteger(L, 2);
+  int depth = 32;
+  Uint32 rmask, gmask, bmask, amask;
+  SDL_Surface* s;
 
 #if SDL_BYTEORDER == SDL_BIG_ENDIAN
-	rmask = 0xff000000;
-	gmask = 0x00ff0000;
-	bmask = 0x0000ff00;
-	amask = 0x000000ff;
+  rmask = 0xff000000;
+  gmask = 0x00ff0000;
+  bmask = 0x0000ff00;
+  amask = 0x000000ff;
 #else
-	rmask = 0x000000ff;
-	gmask = 0x0000ff00;
-	bmask = 0x00ff0000;
-	amask = 0xff000000;
+  rmask = 0x000000ff;
+  gmask = 0x0000ff00;
+  bmask = 0x00ff0000;
+  amask = 0xff000000;
 #endif
 
-	if (lua_gettop(L) >= 3)
-		depth = luaL_checkinteger(L, 3);
-	if (lua_gettop(L) >= 4)
-		rmask = luaL_checkinteger(L, 4);
-	if (lua_gettop(L) >= 5)
-		gmask = luaL_checkinteger(L, 5);
-	if (lua_gettop(L) >= 6)
-		bmask = luaL_checkinteger(L, 6);
-	if (lua_gettop(L) >= 7)
-		amask = luaL_checkinteger(L, 7);
+  if (lua_gettop(L) >= 3)
+    depth = luaL_checkinteger(L, 3);
+  if (lua_gettop(L) >= 4)
+    rmask = luaL_checkinteger(L, 4);
+  if (lua_gettop(L) >= 5)
+    gmask = luaL_checkinteger(L, 5);
+  if (lua_gettop(L) >= 6)
+    bmask = luaL_checkinteger(L, 6);
+  if (lua_gettop(L) >= 7)
+    amask = luaL_checkinteger(L, 7);
 
-	s = SDL_CreateRGBSurface(0, width, height, depth, rmask, gmask, bmask, amask);
-	if (s == NULL)
-		return commonPushSDLError(L, 1);
+  s = SDL_CreateRGBSurface(0, width, height, depth, rmask, gmask, bmask, amask);
+  if (s == NULL)
+    return commonPushSDLError(L, 1);
 
-	return commonPush(L, "p", SurfaceName, s);
+  return commonPush(L, "p", SurfaceName, s);
+}
+
+static int
+l_surface_getVideo(lua_State* L)
+{
+  SDL_Surface* s = SDL_GetVideoSurface();
+  if (s == NULL)
+    return commonPushSDLError(L, 1);
+
+  return commonPush(L, "p", SurfaceName, s);
+}
+
+static int
+l_surface_setVideoMode(lua_State* L)
+{
+  int width = 640;
+  int height = 480;
+  int bpp = 32;
+  int flags = 0;
+
+  luaL_checktype(L, 1, LUA_TTABLE);
+
+  if (tableIsType(L, 1, "width", LUA_TNUMBER))
+    width = tableGetInt(L, 1, "width");
+  if (tableIsType(L, 1, "height", LUA_TNUMBER))
+    height = tableGetInt(L, 1, "height");
+  if (tableIsType(L, 1, "bpp", LUA_TNUMBER))
+    bpp = tableGetInt(L, 1, "bpp");
+  if (tableIsType(L, 1, "flags", LUA_TTABLE))
+    flags = tableGetEnum(L, 1, "flags");
+
+  SDL_Surface* s = SDL_SetVideoMode(width, height, bpp, flags);
+  if (s == NULL)
+    return commonPushSDLError(L, 1);
+
+  return commonPush(L, "p", SurfaceName, s);
 }
 
 #if 0
@@ -143,19 +181,20 @@ static int l_surface_createRGBFrom(lua_State *L)
  *	The surface or nil
  *	The error message
  */
-static int l_surface_createRGBWithFormat(lua_State *L)
+static int
+l_surface_createRGBWithFormat(lua_State* L)
 {
-	int width	= luaL_checkinteger(L, 1);
-	int height	= luaL_checkinteger(L, 2);
-	int depth	= luaL_optinteger(L, 3, 32);
-	int format	= luaL_optinteger(L, 4, SDL_PIXELFORMAT_RGBA32);
-	SDL_Surface *s;
+  int width = luaL_checkinteger(L, 1);
+  int height = luaL_checkinteger(L, 2);
+  int depth = luaL_optinteger(L, 3, 32);
+  int format = luaL_optinteger(L, 4, SDL_PIXELFORMAT_RGBA32);
+  SDL_Surface* s;
 
-	s = SDL_CreateRGBSurfaceWithFormat(0, width, height, depth, format);
-	if (s == NULL)
-		return commonPushSDLError(L, 1);
+  s = SDL_CreateRGBSurfaceWithFormat(0, width, height, depth, format);
+  if (s == NULL)
+    return commonPushSDLError(L, 1);
 
-	return commonPush(L, "p", SurfaceName, s);
+  return commonPush(L, "p", SurfaceName, s);
 }
 #endif
 
@@ -171,16 +210,17 @@ static int l_surface_createRGBWithFormat(lua_State *L)
  *	The surface or nil
  *	The error message
  */
-static int l_surface_loadBMP(lua_State *L)
+static int
+l_surface_loadBMP(lua_State* L)
 {
-	const char *path = luaL_checkstring(L, 1);
-	SDL_Surface *s;
+  const char* path = luaL_checkstring(L, 1);
+  SDL_Surface* s;
 
-	s = SDL_LoadBMP(path);
-	if (s == NULL)
-		return commonPushSDLError(L, 1);
+  s = SDL_LoadBMP(path);
+  if (s == NULL)
+    return commonPushSDLError(L, 1);
 
-	return commonPush(L, "p", SurfaceName, s);
+  return commonPush(L, "p", SurfaceName, s);
 }
 
 /*
@@ -195,25 +235,28 @@ static int l_surface_loadBMP(lua_State *L)
  *	The surface or nil
  *	The error message
  */
-static int l_surface_loadBMP_RW(lua_State *L)
+static int
+l_surface_loadBMP_RW(lua_State* L)
 {
-	SDL_RWops *ops = commonGetAs(L, 1, RWOpsName, SDL_RWops *);
-	SDL_Surface *s;
+  SDL_RWops* ops = commonGetAs(L, 1, RWOpsName, SDL_RWops*);
+  SDL_Surface* s;
 
-	s = SDL_LoadBMP_RW(ops, 0);
-	if (s == NULL)
-		return commonPushSDLError(L, 1);
+  s = SDL_LoadBMP_RW(ops, 0);
+  if (s == NULL)
+    return commonPushSDLError(L, 1);
 
-	return commonPush(L, "p", SurfaceName, s);
+  return commonPush(L, "p", SurfaceName, s);
 }
 
 const luaL_Reg SurfaceFunctions[] = {
-	{ "createRGBSurface",			l_surface_createRGB		},
+  { "createRGBSurface", l_surface_createRGB },
+  { "getVideoSurface", l_surface_getVideo },
+  { "setVideoMode", l_surface_setVideoMode },
 #if SDL_VERSION_ATLEAST(2, 0, 5)
-	{ "createRGBSurfaceWithFormat",		l_surface_createRGBWithFormat	},
+  { "createRGBSurfaceWithFormat", l_surface_createRGBWithFormat },
 #endif
-	{ "loadBMP",				l_surface_loadBMP		},
-	{ "loadBMP_RW",				l_surface_loadBMP_RW		},
+  { "loadBMP", l_surface_loadBMP },
+  { "loadBMP_RW", l_surface_loadBMP_RW },
 #if 0
 	{ "createRGBSurfaceFrom",		l_surface_createRGBFrom		},
 #if SDL_VERSION_ATLEAST(2, 0, 5)
@@ -221,7 +264,7 @@ const luaL_Reg SurfaceFunctions[] = {
 		l_surface_createRGBFromWithFormat				},
 #endif
 #endif
-	{ NULL,				NULL			}
+  { NULL, NULL }
 };
 
 /* --------------------------------------------------------
@@ -229,48 +272,60 @@ const luaL_Reg SurfaceFunctions[] = {
  * -------------------------------------------------------- */
 
 static int
-surfaceBlit(lua_State *L, int scaled, int lower)
+surfaceBlit(lua_State* L, int lower)
 {
-	typedef int (*BlitFunc)(SDL_Surface *, const SDL_Rect *, SDL_Surface *, SDL_Rect *);
-	typedef int (*LowerBlitFunc)(SDL_Surface *, SDL_Rect *, SDL_Surface *, SDL_Rect *);
+  typedef int (*BlitFunc)(SDL_Surface*, SDL_Rect*, SDL_Surface*, SDL_Rect*);
+  typedef int (*LowerBlitFunc)(
+    SDL_Surface*, SDL_Rect*, SDL_Surface*, SDL_Rect*);
 
-	SDL_Surface *src = commonGetAs(L, 1, SurfaceName, SDL_Surface *);
-	SDL_Surface *dst = commonGetAs(L, 2, SurfaceName, SDL_Surface *);
-	SDL_Rect srcrect, dstrect;
-	SDL_Rect *srcptr = &srcrect, *dstptr = &dstrect;
+  SDL_Surface* src = commonGetAs(L, 1, SurfaceName, SDL_Surface*);
+  SDL_Surface* dst = commonGetAs(L, 2, SurfaceName, SDL_Surface*);
+  SDL_Rect srcrect, dstrect;
+  SDL_Rect *srcptr = &srcrect, *dstptr = &dstrect;
 
-	if (lua_type(L, 3) == LUA_TTABLE)
-		videoGetRect(L, 3, &srcrect);
-	else
-		SDL_GetClipRect(src, &srcrect);
+  if (lua_type(L, 3) == LUA_TTABLE)
+    videoGetRect(L, 3, &srcrect);
+  else
+    SDL_GetClipRect(src, &srcrect);
 
-	if (lua_type(L, 4) == LUA_TTABLE)
-		videoGetRect(L, 4, &dstrect);
-	else
-		SDL_GetClipRect(dst, &dstrect);
+  if (lua_type(L, 4) == LUA_TTABLE)
+    videoGetRect(L, 4, &dstrect);
+  else
+    SDL_GetClipRect(dst, &dstrect);
 
-	if (!lower) {
-		BlitFunc func = (scaled) ? SDL_BlitScaled : SDL_BlitSurface ;
+  if (!lower) {
+    BlitFunc func = SDL_BlitSurface;
 
-		if (func(src, srcptr, dst, dstptr) < 0)
-			return commonPushSDLError(L, 2);
-	} else {
-		LowerBlitFunc func = (scaled) ? SDL_LowerBlitScaled : SDL_LowerBlit;
+    if (func(src, srcptr, dst, dstptr) < 0)
+      return commonPushSDLError(L, 2);
+  } else {
+    LowerBlitFunc func = SDL_LowerBlit;
 
-		if (func(src, srcptr, dst, dstptr) < 0)
-			return commonPushSDLError(L, 2);
-	}
+    if (func(src, srcptr, dst, dstptr) < 0)
+      return commonPushSDLError(L, 2);
+  }
 
-	/* Push true + the modified rectangle */
-	lua_pushboolean(L, 1);
-	videoPushRect(L, &dstrect);
+  /* Push true + the modified rectangle */
+  lua_pushboolean(L, 1);
+  videoPushRect(L, &dstrect);
 
-	return 2;
+  return 2;
 }
 
 /* --------------------------------------------------------
  * Surface methods
  * -------------------------------------------------------- */
+
+static int
+l_surface_flip(lua_State* L, int lower)
+{
+  SDL_Surface* surf = commonGetAs(L, 1, SurfaceName, SDL_Surface*);
+
+  if (SDL_Flip(surf) < 0)
+    return commonPushSDLError(L, 2);
+
+  return commonPush(L, "b", 1);
+}
 
 /*
  * Surface:blit(surface, srcrect, dstrect)
@@ -285,9 +340,9 @@ surfaceBlit(lua_State *L, int scaled, int lower)
  *	The error message
  */
 static int
-l_surface_blit(lua_State *L)
+l_surface_blit(lua_State* L)
 {
-	return surfaceBlit(L, 0, 0);
+  return surfaceBlit(L, 0);
 }
 
 /*
@@ -302,19 +357,20 @@ l_surface_blit(lua_State *L)
  *	True on success or false
  *	The error message
  */
+/*
 static int
-l_surface_blitScaled(lua_State *L)
+l_surface_blitScaled(lua_State* L)
 {
-	return surfaceBlit(L, 1, 0);
+  return surfaceBlit(L, 0);
 }
-
+*/
 static int
-l_surface_convert(lua_State *L)
+l_surface_convert(lua_State* L)
 {
-	/* XXX: IMPLEMENT */
-	(void)L;
+  /* XXX: IMPLEMENT */
+  (void)L;
 
-	return 0;
+  return 0;
 }
 
 /*
@@ -327,19 +383,21 @@ l_surface_convert(lua_State *L)
  *	The new surface or nil
  *	The error message
  */
+/*
 static int
-l_surface_convertFormat(lua_State *L)
+l_surface_convertFormat(lua_State* L)
 {
-	SDL_Surface *surf	= commonGetAs(L, 1, SurfaceName, SDL_Surface *);
-	int format		= luaL_checkinteger(L, 2);
-	SDL_Surface *ret;
+  SDL_Surface* surf = commonGetAs(L, 1, SurfaceName, SDL_Surface*);
+  int format = luaL_checkinteger(L, 2);
+  SDL_Surface* ret;
 
-	ret = SDL_ConvertSurfaceFormat(surf, format, 0);
-	if (ret == NULL)
-		return commonPushSDLError(L, 1);
+  ret = SDL_ConvertSurfaceFormat(surf, format, 0);
+  if (ret == NULL)
+    return commonPushSDLError(L, 1);
 
-	return commonPush(L, "p", SurfaceName, ret);
+  return commonPush(L, "p", SurfaceName, ret);
 }
+*/
 
 /*
  * Surface:fillRect(rect = nil, color = black)
@@ -353,62 +411,27 @@ l_surface_convertFormat(lua_State *L)
  *	The error message
  */
 static int
-l_surface_fillRect(lua_State *L)
+l_surface_fillRect(lua_State* L)
 {
-	SDL_Surface *surf = commonGetAs(L, 1, SurfaceName, SDL_Surface *);
-	SDL_Rect rect, *rectptr = NULL;
-	Uint32 color = 0;
+  SDL_Surface* surf = commonGetAs(L, 1, SurfaceName, SDL_Surface*);
+  SDL_Rect rect, *rectptr = NULL;
+  Uint32 color = 0;
 
-	if (lua_type(L, 2) != LUA_TNIL) {
-		videoGetRect(L, 2, &rect);
-		rectptr = &rect;
-	}
+  if (lua_type(L, 2) != LUA_TNIL) {
+    videoGetRect(L, 2, &rect);
+    rectptr = &rect;
+  }
 
-	/* Default color is black */
-	if (lua_gettop(L) >= 3) {
-		SDL_Color c = videoGetColorRGB(L, 3);
-		color = SDL_MapRGBA(surf->format, c.r, c.g, c.b, c.a);
-	}
+  /* Default color is black */
+  if (lua_gettop(L) >= 3) {
+    SDL_Color c = videoGetColorRGB(L, 3);
+    color = SDL_MapRGBA(surf->format, c.r, c.g, c.b, c.unused);
+  }
 
-	if (SDL_FillRect(surf, rectptr, color) < 0)
-		return commonPushSDLError(L, 1);
+  if (SDL_FillRect(surf, rectptr, color) < 0)
+    return commonPushSDLError(L, 1);
 
-	return commonPush(L, "b", 1);
-}
-
-/*
- * Surface:fillRects(rects, color)
- *
- * Params:
- *	rects the sequence of rects
- *	color the color
- *
- * Returns:
- *	True on success or false
- *	The error message
- */
-static int
-l_surface_fillRects(lua_State *L)
-{
-	SDL_Surface *surf	= commonGetAs(L, 1, SurfaceName, SDL_Surface *);
-	SDL_Color c		= videoGetColorRGB(L, 3);
-	Uint32 color		= SDL_MapRGBA(surf->format, c.r, c.g, c.b, c.a);
-	Array rects;
-	int ret;
-
-	/* Get / check arguments */
-	luaL_checktype(L, 2, LUA_TTABLE);
-
-	if (videoGetRects(L, 2, &rects) < 0)
-		return commonPushErrno(L, 1);
-
-	ret = SDL_FillRects(surf, rects.data, rects.length, color);
-	arrayFree(&rects);
-
-	if (ret < 0)
-		return commonPushSDLError(L, 1);
-
-	return commonPush(L, "b", ret);
+  return commonPush(L, "b", 1);
 }
 
 /*
@@ -418,14 +441,14 @@ l_surface_fillRects(lua_State *L)
  * 	A Uint32 filled with the correct pixel value
  */
 static int
-l_surface_mapRGB(lua_State *L)
+l_surface_mapRGB(lua_State* L)
 {
-	SDL_Surface *surf = commonGetAs(L, 1, SurfaceName, SDL_Surface *);
-	SDL_Color c = videoGetColorRGB(L, 2);
+  SDL_Surface* surf = commonGetAs(L, 1, SurfaceName, SDL_Surface*);
+  SDL_Color c = videoGetColorRGB(L, 2);
 
-	lua_pushinteger(L, SDL_MapRGB(surf->format, c.r, c.g, c.b));
+  lua_pushinteger(L, SDL_MapRGB(surf->format, c.r, c.g, c.b));
 
-	return 1;
+  return 1;
 }
 
 /*
@@ -435,14 +458,14 @@ l_surface_mapRGB(lua_State *L)
  * 	A Uint32 filled with the correct pixel value.
  */
 static int
-l_surface_mapRGBA(lua_State *L)
+l_surface_mapRGBA(lua_State* L)
 {
-	SDL_Surface *surf = commonGetAs(L, 1, SurfaceName, SDL_Surface *);
-	SDL_Color c = videoGetColorRGB(L, 2);
+  SDL_Surface* surf = commonGetAs(L, 1, SurfaceName, SDL_Surface*);
+  SDL_Color c = videoGetColorRGB(L, 2);
 
-	lua_pushinteger(L, SDL_MapRGBA(surf->format, c.r, c.g, c.b, c.a));
+  lua_pushinteger(L, SDL_MapRGBA(surf->format, c.r, c.g, c.b, c.unused));
 
-	return 1;
+  return 1;
 }
 
 /*
@@ -452,17 +475,52 @@ l_surface_mapRGBA(lua_State *L)
  *	The clip rect
  */
 static int
-l_surface_getClipRect(lua_State *L)
+l_surface_getClipRect(lua_State* L)
 {
-	SDL_Surface *surf = commonGetAs(L, 1, SurfaceName, SDL_Surface *);
-	SDL_Rect rect;
+  SDL_Surface* surf = commonGetAs(L, 1, SurfaceName, SDL_Surface*);
+  SDL_Rect rect;
 
-	SDL_GetClipRect(surf, &rect);
-	videoPushRect(L, &rect);
+  SDL_GetClipRect(surf, &rect);
+  videoPushRect(L, &rect);
 
-	return 1;
+  return 1;
 }
 
+static int
+sdl_GetColorKey(SDL_Surface* surface, Uint32* key)
+{
+  if (surface == NULL) {
+    return -1;
+  }
+
+  if (!(surface->flags & SDL_SRCCOLORKEY)) {
+    SDL_SetError("Surface doesn't have a colorkey");
+    return -1;
+  }
+
+  if (key) {
+    *key = surface->format->colorkey;
+  }
+  return 0;
+}
+
+static int
+sdl_GetAlpha(SDL_Surface* surface, Uint8* value)
+{
+  if (surface == NULL) {
+    return -1;
+  }
+
+  if (!(surface->flags & SDL_SRCALPHA)) {
+    SDL_SetError("Surface doesn't have a alpha");
+    return -1;
+  }
+
+  if (value) {
+    *value = surface->format->alpha;
+  }
+  return 0;
+}
 /*
  * Surface:getColorKey()
  *
@@ -472,23 +530,23 @@ l_surface_getClipRect(lua_State *L)
  *	The error message
  */
 static int
-l_surface_getColorKey(lua_State *L)
+l_surface_getColorKey(lua_State* L)
 {
-	SDL_Surface *surf = commonGetAs(L, 1, SurfaceName, SDL_Surface *);
-	SDL_Color c;
-	Uint32 value;
+  SDL_Surface* surf = commonGetAs(L, 1, SurfaceName, SDL_Surface*);
+  SDL_Color c;
+  Uint32 value;
 
-	if (SDL_GetColorKey(surf, &value) < 0)
-		return commonPushSDLError(L, 1);
+  if (sdl_GetColorKey(surf, &value) < 0)
+    return commonPushSDLError(L, 1);
 
-	c.r = ((value >> 16) & 0xFF);
-	c.g = ((value >> 8) & 0xFF);
-	c.b = ((value) & 0xFF);
+  c.r = ((value >> 16) & 0xFF);
+  c.g = ((value >> 8) & 0xFF);
+  c.b = ((value)&0xFF);
 
-	commonPush(L, "i", value);
-	videoPushColorRGB(L, &c);
+  commonPush(L, "i", value);
+  videoPushColorRGB(L, &c);
 
-	return 2;
+  return 2;
 }
 
 /*
@@ -499,15 +557,15 @@ l_surface_getColorKey(lua_State *L)
  *	The error message
  */
 static int
-l_surface_getAlphaMod(lua_State *L)
+l_surface_getAlphaMod(lua_State* L)
 {
-	SDL_Surface *surf = commonGetAs(L, 1, SurfaceName, SDL_Surface *);
-	Uint8 value;
+  SDL_Surface* surf = commonGetAs(L, 1, SurfaceName, SDL_Surface*);
+  Uint8 value;
 
-	if (SDL_GetSurfaceAlphaMod(surf, &value) < 0)
-		return commonPushSDLError(L, 1);
+  if (sdl_GetAlpha(surf, &value) < 0)
+    return commonPushSDLError(L, 1);
 
-	return commonPush(L, "i", value);
+  return commonPush(L, "i", value);
 }
 
 /*
@@ -517,18 +575,19 @@ l_surface_getAlphaMod(lua_State *L)
  *	The blend mode or nil
  *	The error message
  */
+/*
 static int
-l_surface_getBlendMode(lua_State *L)
+l_surface_getBlendMode(lua_State* L)
 {
-	SDL_Surface *surf = commonGetAs(L, 1, SurfaceName, SDL_Surface *);
-	SDL_BlendMode value;
+  SDL_Surface* surf = commonGetAs(L, 1, SurfaceName, SDL_Surface*);
+  SDL_BlendMode value;
 
-	if (SDL_GetSurfaceBlendMode(surf, &value) < 0)
-		return commonPushSDLError(L, 1);
+  if (SDL_GetSurfaceBlendMode(surf, &value) < 0)
+    return commonPushSDLError(L, 1);
 
-	return commonPush(L, "i", value);
+  return commonPush(L, "i", value);
 }
-
+*/
 /*
  * Surface:getColorMod()
  *
@@ -536,24 +595,25 @@ l_surface_getBlendMode(lua_State *L)
  *	The color mod or nil
  *	The error message
  */
+/*
 static int
-l_surface_getColorMod(lua_State *L)
+l_surface_getColorMod(lua_State* L)
 {
-	SDL_Surface *surf = commonGetAs(L, 1, SurfaceName, SDL_Surface *);
-	SDL_Color c;
-	Uint32 value;
+  SDL_Surface* surf = commonGetAs(L, 1, SurfaceName, SDL_Surface*);
+  SDL_Color c;
+  Uint32 value;
 
-	if (SDL_GetSurfaceColorMod(surf, &c.r, &c.g, &c.b) < 0)
-		return commonPushSDLError(L, 2);
+  if (SDL_GetSurfaceColorMod(surf, &c.r, &c.g, &c.b) < 0)
+    return commonPushSDLError(L, 2);
 
-	value = (c.r << 16) | (c.g << 8) | c.b;
+  value = (c.r << 16) | (c.g << 8) | c.b;
 
-	commonPush(L, "i", value);
-	videoPushColorRGB(L, &c);
+  commonPush(L, "i", value);
+  videoPushColorRGB(L, &c);
 
-	return 2;
+  return 2;
 }
-
+*/
 /*
  * Surface:lock()
  *
@@ -562,14 +622,14 @@ l_surface_getColorMod(lua_State *L)
  *	The error message
  */
 static int
-l_surface_lock(lua_State *L)
+l_surface_lock(lua_State* L)
 {
-	SDL_Surface *surf = commonGetAs(L, 1, SurfaceName, SDL_Surface *);
+  SDL_Surface* surf = commonGetAs(L, 1, SurfaceName, SDL_Surface*);
 
-	if (SDL_LockSurface(surf) < 0)
-		return commonPushSDLError(L, 1);
+  if (SDL_LockSurface(surf) < 0)
+    return commonPushSDLError(L, 1);
 
-	return commonPush(L, "b", 1);
+  return commonPush(L, "b", 1);
 }
 
 /*
@@ -585,9 +645,9 @@ l_surface_lock(lua_State *L)
  *	The error message
  */
 static int
-l_surface_lowerBlit(lua_State *L)
+l_surface_lowerBlit(lua_State* L)
 {
-	return surfaceBlit(L, 0, 1);
+  return surfaceBlit(L, 1);
 }
 
 /*
@@ -602,12 +662,13 @@ l_surface_lowerBlit(lua_State *L)
  *	True on success or false
  *	The error message
  */
+/*
 static int
-l_surface_lowerBlitScaled(lua_State *L)
+l_surface_lowerBlitScaled(lua_State* L)
 {
-	return surfaceBlit(L, 1, 1);
+  return surfaceBlit(L, 1);
 }
-
+*/
 /*
  * Surface:mustLock()
  *
@@ -615,11 +676,11 @@ l_surface_lowerBlitScaled(lua_State *L)
  *	True or false
  */
 static int
-l_surface_mustLock(lua_State *L)
+l_surface_mustLock(lua_State* L)
 {
-	SDL_Surface *surf = commonGetAs(L, 1, SurfaceName, SDL_Surface *);
+  SDL_Surface* surf = commonGetAs(L, 1, SurfaceName, SDL_Surface*);
 
-	return commonPush(L, "b", SDL_MUSTLOCK(surf));
+  return commonPush(L, "b", SDL_MUSTLOCK(surf));
 }
 
 /*
@@ -633,15 +694,15 @@ l_surface_mustLock(lua_State *L)
  *	The error message
  */
 static int
-l_surface_saveBMP(lua_State *L)
+l_surface_saveBMP(lua_State* L)
 {
-	SDL_Surface *surf	= commonGetAs(L, 1, SurfaceName, SDL_Surface *);
-	const char *path	= luaL_checkstring(L, 2);
+  SDL_Surface* surf = commonGetAs(L, 1, SurfaceName, SDL_Surface*);
+  const char* path = luaL_checkstring(L, 2);
 
-	if (SDL_SaveBMP(surf, path) < 0)
-		return commonPushSDLError(L, 1);
+  if (SDL_SaveBMP(surf, path) < 0)
+    return commonPushSDLError(L, 1);
 
-	return commonPush(L, "b", 1);
+  return commonPush(L, "b", 1);
 }
 
 /*
@@ -655,15 +716,15 @@ l_surface_saveBMP(lua_State *L)
  *	The error message
  */
 static int
-l_surface_saveBMP_RW(lua_State *L)
+l_surface_saveBMP_RW(lua_State* L)
 {
-	SDL_Surface *surf	= commonGetAs(L, 1, SurfaceName, SDL_Surface *);
-	SDL_RWops *ops		= commonGetAs(L, 2, RWOpsName, SDL_RWops *);
+  SDL_Surface* surf = commonGetAs(L, 1, SurfaceName, SDL_Surface*);
+  SDL_RWops* ops = commonGetAs(L, 2, RWOpsName, SDL_RWops*);
 
-	if (SDL_SaveBMP_RW(surf, ops, 0) < 0)
-		return commonPushSDLError(L, 1);
+  if (SDL_SaveBMP_RW(surf, ops, 0) < 0)
+    return commonPushSDLError(L, 1);
 
-	return commonPush(L, "b", 1);
+  return commonPush(L, "b", 1);
 }
 
 /*
@@ -676,14 +737,14 @@ l_surface_saveBMP_RW(lua_State *L)
  *	True or false
  */
 static int
-l_surface_setClipRect(lua_State *L)
+l_surface_setClipRect(lua_State* L)
 {
-	SDL_Surface *surf = commonGetAs(L, 1, SurfaceName, SDL_Surface *);
-	SDL_Rect rect;
+  SDL_Surface* surf = commonGetAs(L, 1, SurfaceName, SDL_Surface*);
+  SDL_Rect rect;
 
-	videoGetRect(L, 2, &rect);
+  videoGetRect(L, 2, &rect);
 
-	return commonPush(L, "b", SDL_SetClipRect(surf, &rect));
+  return commonPush(L, "b", SDL_SetClipRect(surf, &rect));
 }
 
 /*
@@ -698,16 +759,16 @@ l_surface_setClipRect(lua_State *L)
  *	The error message
  */
 static int
-l_surface_setColorKey(lua_State *L)
+l_surface_setColorKey(lua_State* L)
 {
-	SDL_Surface *surf	= commonGetAs(L, 1, SurfaceName, SDL_Surface *);
-	int flag		= lua_toboolean(L, 2);
-	int key			= luaL_checkinteger(L, 3);
+  SDL_Surface* surf = commonGetAs(L, 1, SurfaceName, SDL_Surface*);
+  int flag = lua_toboolean(L, 2);
+  int key = luaL_checkinteger(L, 3);
 
-	if (SDL_SetColorKey(surf, flag, key) < 0)
-		return commonPushSDLError(L, 1);
+  if (SDL_SetColorKey(surf, flag, key) < 0)
+    return commonPushSDLError(L, 1);
 
-	return commonPush(L, "b", 1);
+  return commonPush(L, "b", 1);
 }
 
 /*
@@ -721,15 +782,16 @@ l_surface_setColorKey(lua_State *L)
  *	The error message
  */
 static int
-l_surface_setAlphaMod(lua_State *L)
+l_surface_setAlphaMod(lua_State* L)
 {
-	SDL_Surface *surf	= commonGetAs(L, 1, SurfaceName, SDL_Surface *);
-	int alpha		= luaL_checkinteger(L, 2);
+  SDL_Surface* surf = commonGetAs(L, 1, SurfaceName, SDL_Surface*);
+  int flag = luaL_checkinteger(L, 2);
+  int alpha = luaL_checkinteger(L, 3);
 
-	if (SDL_SetSurfaceAlphaMod(surf, alpha) < 0)
-		return commonPushSDLError(L, 1);
+  if (SDL_SetAlpha(surf, flag, alpha) < 0)
+    return commonPushSDLError(L, 1);
 
-	return commonPush(L, "b", 1);
+  return commonPush(L, "b", 1);
 }
 
 /*
@@ -742,18 +804,19 @@ l_surface_setAlphaMod(lua_State *L)
  *	True on success or false
  *	The error message
  */
+/*
 static int
-l_surface_setBlendMode(lua_State *L)
+l_surface_setBlendMode(lua_State* L)
 {
-	SDL_Surface *surf	= commonGetAs(L, 1, SurfaceName, SDL_Surface *);
-	SDL_BlendMode mode	= luaL_checkinteger(L, 2);
+  SDL_Surface* surf = commonGetAs(L, 1, SurfaceName, SDL_Surface*);
+  SDL_BlendMode mode = luaL_checkinteger(L, 2);
 
-	if (SDL_SetSurfaceBlendMode(surf, mode) < 0)
-		return commonPushSDLError(L, 1);
+  if (SDL_SetSurfaceBlendMode(surf, mode) < 0)
+    return commonPushSDLError(L, 1);
 
-	return commonPush(L, "b", 1);
+  return commonPush(L, "b", 1);
 }
-
+*/
 /*
  * Surface:setColorMod(color)
  *
@@ -764,20 +827,21 @@ l_surface_setBlendMode(lua_State *L)
  *	True on success or false
  *	The error message
  */
+/*
 static int
-l_surface_setColorMod(lua_State *L)
+l_surface_setColorMod(lua_State* L)
 {
-	SDL_Surface *surf = commonGetAs(L, 1, SurfaceName, SDL_Surface *);
-	SDL_Color color;
+  SDL_Surface* surf = commonGetAs(L, 1, SurfaceName, SDL_Surface*);
+  SDL_Color color;
 
-	color = videoGetColorRGB(L, 2);
+  color = videoGetColorRGB(L, 2);
 
-	if (SDL_SetSurfaceColorMod(surf, color.r, color.g, color.b) < 0)
-		return commonPushSDLError(L, 1);
+  if (SDL_SetSurfaceColorMod(surf, color.r, color.g, color.b) < 0)
+    return commonPushSDLError(L, 1);
 
-	return commonPush(L, "b", 1);
+  return commonPush(L, "b", 1);
 }
-
+*/
 /*
  * Surface:setPalette(colors)
  *
@@ -789,26 +853,25 @@ l_surface_setColorMod(lua_State *L)
  *	The error message
  */
 static int
-l_surface_setPalette(lua_State *L)
+l_surface_setPalette(lua_State* L)
 {
-	SDL_Surface *surf = commonGetAs(L, 1, SurfaceName, SDL_Surface *);
-	SDL_Palette palette;
-	Array colors;
-	int ret;
+  SDL_Surface* surf = commonGetAs(L, 1, SurfaceName, SDL_Surface*);
+  Array colors;
+  int ret;
 
-	if (videoGetColorsRGB(L, 2, &colors) < 0)
-		return commonPushSDLError(L, 1);
+  if (videoGetColorsRGB(L, 2, &colors) < 0)
+    return commonPushSDLError(L, 1);
 
-	palette.ncolors	= colors.length;
-	palette.colors	= colors.data;
+  int flags = 0;
+  int firstcolor = 0;
 
-	ret = SDL_SetSurfacePalette(surf, &palette);
-	arrayFree(&colors);
+  ret = SDL_SetPalette(surf, flags, colors.data, firstcolor, colors.length);
+  arrayFree(&colors);
 
-	if (ret < 0)
-		return commonPushSDLError(L, 1);
+  if (ret < 0)
+    return commonPushSDLError(L, 1);
 
-	return commonPush(L, "b", 1);
+  return commonPush(L, "b", 1);
 }
 
 /*
@@ -821,46 +884,46 @@ l_surface_setPalette(lua_State *L)
  *	True on success or false
  *	The error message
  */
+/*
 static int
-l_surface_setRLE(lua_State *L)
+l_surface_setRLE(lua_State* L)
 {
-	SDL_Surface *surf	= commonGetAs(L, 1, SurfaceName, SDL_Surface *);
-	int flag		= lua_toboolean(L, 2);
+  SDL_Surface* surf = commonGetAs(L, 1, SurfaceName, SDL_Surface*);
+  int flag = lua_toboolean(L, 2);
 
-	if (SDL_SetSurfaceRLE(surf, flag) < 0)
-		return commonPushSDLError(L, 1);
+  if (SDL_SetSurfaceRLE(surf, flag) < 0)
+    return commonPushSDLError(L, 1);
 
-	return commonPush(L, "b", 1);
+  return commonPush(L, "b", 1);
 }
+*/
 
 /*
  * Surface:unlock()
  */
 static int
-l_surface_unlock(lua_State *L)
+l_surface_unlock(lua_State* L)
 {
-	SDL_Surface *surf = commonGetAs(L, 1, SurfaceName, SDL_Surface *);
+  SDL_Surface* surf = commonGetAs(L, 1, SurfaceName, SDL_Surface*);
 
-	SDL_UnlockSurface(surf);
+  SDL_UnlockSurface(surf);
 
-	return 0;
+  return 0;
 }
 
 /*
  * Surface:__gc()
  */
 static int
-l_surface_gc(lua_State *L)
+l_surface_gc(lua_State* L)
 {
-	CommonUserdata *udata = commonGetUserdata(L, 1, SurfaceName);
+  CommonUserdata* udata = commonGetUserdata(L, 1, SurfaceName);
 
-	if (udata->mustdelete)
-		SDL_FreeSurface(udata->data);
+  if (udata->mustdelete)
+    SDL_FreeSurface(udata->data);
 
-	return 0;
+  return 0;
 }
-
-
 
 /*
  * Surface:getSize()
@@ -870,13 +933,12 @@ l_surface_gc(lua_State *L)
  *	The height
  */
 static int
-l_surface_getSize(lua_State *L)
+l_surface_getSize(lua_State* L)
 {
-	SDL_Surface *surf = commonGetAs(L, 1, SurfaceName, SDL_Surface *);
+  SDL_Surface* surf = commonGetAs(L, 1, SurfaceName, SDL_Surface*);
 
-	return commonPush(L, "ii", surf->w, surf->h);
+  return commonPush(L, "ii", surf->w, surf->h);
 }
-
 
 /*
  * Surface:getRawPixel(x,y)
@@ -885,65 +947,68 @@ l_surface_getSize(lua_State *L)
  *	(raw) byte string of pixel data (pixel format dependent)
  */
 static int
-l_surface_getRawPixel(lua_State *L)
+l_surface_getRawPixel(lua_State* L)
 {
-	SDL_Surface *surf = commonGetAs(L, 1, SurfaceName, SDL_Surface *);
-	int x = luaL_checkinteger(L, 2);
-	int y = luaL_checkinteger(L, 3);
-	int size = surf->format->BytesPerPixel;
-	char *ptr = (char *)surf->pixels + y * surf->pitch + x * size;
-	lua_pushlstring(L, ptr, size);
-	return 1;
+  SDL_Surface* surf = commonGetAs(L, 1, SurfaceName, SDL_Surface*);
+  int x = luaL_checkinteger(L, 2);
+  int y = luaL_checkinteger(L, 3);
+  int size = surf->format->BytesPerPixel;
+  char* ptr = (char*)surf->pixels + y * surf->pitch + x * size;
+  lua_pushlstring(L, ptr, size);
+  return 1;
 }
 
 static const luaL_Reg methods[] = {
-	{ "blit",		l_surface_blit			},
-	{ "blitScaled",		l_surface_blitScaled		},
-	{ "convert",		l_surface_convert		},
-	{ "convertFormat",	l_surface_convertFormat		},
-	{ "fillRect",		l_surface_fillRect		},
-	{ "fillRects",		l_surface_fillRects		},
-	{ "mapRGB", 		l_surface_mapRGB		},
-	{ "mapRGBA",		l_surface_mapRGBA		},
-	{ "getClipRect",	l_surface_getClipRect,		},
-	{ "getColorKey",	l_surface_getColorKey		},
-	{ "getAlphaMod",	l_surface_getAlphaMod		},
-	{ "getBlendMode",	l_surface_getBlendMode		},
-	{ "getColorMod",	l_surface_getColorMod		},
-	{ "getSize",		l_surface_getSize		},
-	{ "getRawPixel",        l_surface_getRawPixel		},
-	{ "lock",		l_surface_lock			},
-	{ "lowerBlit",		l_surface_lowerBlit		},
-	{ "lowerBlitScaled",	l_surface_lowerBlitScaled	},
-	{ "mustLock",		l_surface_mustLock		},
-	{ "saveBMP",		l_surface_saveBMP		},
-	{ "saveBMP_RW",		l_surface_saveBMP_RW		},
-	{ "setClipRect",	l_surface_setClipRect		},
-	{ "setColorKey",	l_surface_setColorKey		},
-	{ "setAlphaMod",	l_surface_setAlphaMod		},
-	{ "setBlendMode",	l_surface_setBlendMode		},
-	{ "setColorMod",	l_surface_setColorMod		},
-	{ "setPalette",		l_surface_setPalette		},
-	{ "setRLE",		l_surface_setRLE		},
-	{ "unlock",		l_surface_unlock		},
-	{ NULL,			NULL				}
+  { "blit", l_surface_blit },
+  { "flip", l_surface_flip },
+  { "convert", l_surface_convert },
+  /*{ "convertFormat",
+    l_surface_convertFormat },*/
+  { "fillRect", l_surface_fillRect },
+  { "mapRGB", l_surface_mapRGB },
+  { "mapRGBA", l_surface_mapRGBA },
+  {
+    "getClipRect",
+    l_surface_getClipRect,
+  },
+  { "getColorKey", l_surface_getColorKey },
+  { "getAlpha", l_surface_getAlphaMod },
+  /*{ "getBlendMode", l_surface_getBlendMode },
+  { "getColorMod", l_surface_getColorMod },*/
+  { "getSize", l_surface_getSize },
+  { "getRawPixel", l_surface_getRawPixel },
+  { "lock", l_surface_lock },
+  { "lowerBlit", l_surface_lowerBlit },
+  { "mustLock", l_surface_mustLock },
+  { "saveBMP", l_surface_saveBMP },
+  { "saveBMP_RW", l_surface_saveBMP_RW },
+  { "setClipRect", l_surface_setClipRect },
+  { "setColorKey", l_surface_setColorKey },
+  { "setAlpha", l_surface_setAlphaMod },
+  /*{ "setBlendMode", l_surface_setBlendMode },
+  { "setColorMod", l_surface_setColorMod },*/
+  { "setPalette", l_surface_setPalette },
+  /*{ "setRLE", l_surface_setRLE },*/
+  { "unlock", l_surface_unlock },
+  { NULL, NULL }
 };
 
-static const luaL_Reg metamethods[] = {
-	{ "__gc",		l_surface_gc			},
-	{ NULL,			NULL				}
-};
+static const luaL_Reg metamethods[] = { { "__gc", l_surface_gc },
+                                        { NULL, NULL } };
+/*
+const CommonEnum BlendMode[] = { { "None", SDL_BLENDMODE_NONE },
+                                 { "Blend", SDL_BLENDMODE_BLEND },
+                                 { "Add", SDL_BLENDMODE_ADD },
+                                 { "Mod", SDL_BLENDMODE_MOD },
+                                 { NULL, -1 } };
+*/
+const CommonObject Surface = { "Surface", methods, metamethods };
 
-const CommonEnum BlendMode[] = {
-	{ "None",		SDL_BLENDMODE_NONE		},
-	{ "Blend",		SDL_BLENDMODE_BLEND		},
-	{ "Add",		SDL_BLENDMODE_ADD		},
-	{ "Mod",		SDL_BLENDMODE_MOD		},
-	{ NULL,			-1				}
-};
-
-const CommonObject Surface = {
-	"Surface",
-	methods,
-	metamethods
+const CommonEnum VideoFlags[] = {
+  { "Fullscreen", SDL_FULLSCREEN }, { "HwPalette", SDL_HWPALETTE },
+  { "OpenGL", SDL_OPENGL },         { "OpenGLBlit", SDL_OPENGLBLIT },
+  { "DoubleBuf", SDL_DOUBLEBUF },   { "NoFrame", SDL_NOFRAME },
+  { "Resizable", SDL_RESIZABLE },   { "Anyformat", SDL_ANYFORMAT },
+  { "SwSurface", SDL_SWSURFACE },   { "HwSurface", SDL_HWSURFACE },
+  { "AsyncBlit", SDL_ASYNCBLIT },   { NULL, -1 }
 };

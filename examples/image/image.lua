@@ -2,8 +2,8 @@
 -- image.lua -- shows SDL_image module for Lua
 --
 
-local SDL	= require "SDL"
-local image	= require "SDL.image"
+local SDL	= require "SDL1"
+local image	= require "SDL1.image"
 
 local ret, err = SDL.init { SDL.flags.Video }
 if not ret then
@@ -15,19 +15,14 @@ if not ret then
 	error(err)
 end
 
-local win, err = SDL.createWindow {
-	title	= "Image",
-	height	= 256,
-	width	= 256
+local surface, err = SDL.setVideoMode {
+    bpp	= 32,
+    height	= 250,
+    width	= 250,
+    flags = { SDL.video.HwSurface }
 }
-
-if not win then
-	error(err)
-end
-
-local rdr, err = SDL.createRenderer(win, 0, 0)
-if not rdr then
-	error(err)
+if not surface then
+    error(err)
 end
 
 local img, ret = image.load("Lua-SDL2.png")
@@ -35,13 +30,9 @@ if not img then
 	error(err)
 end
 
-img = rdr:createTextureFromSurface(img)
-
 for i = 1, 50 do
-	rdr:setDrawColor(0xFFFFFF)
-	rdr:clear()
-	rdr:copy(img)
-	rdr:present()
+    img:blit(surface)
+    surface:flip()
 
-	SDL.delay(100)
+    SDL.delay(100)
 end

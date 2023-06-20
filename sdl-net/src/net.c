@@ -625,7 +625,7 @@ static const luaL_Reg functions[] = {
 };
 
 int EXPORT
-luaopen_SDL_net(lua_State *L)
+luaopen_SDL1_net(lua_State *L)
 {
 	commonNewLibrary(L, functions);
 

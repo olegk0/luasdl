@@ -36,76 +36,63 @@
  * correct one, so we need to create a new filter for each new filter
  * function since the function is the same (eventFilter).
  */
-typedef struct {
-	lua_State	*L;		/*! the Lua state */
-	int		ref;		/*! the function to call */
-
-	enum {
-		EventTypeFilter,
-		EventTypeWatcher,
-	}		type;		/*! type of filter */
+typedef struct
+{
+  lua_State* L; /*! the Lua state */
+  int ref;      /*! the function to call */
+  /*
+          enum {
+                  EventTypeFilter,
+                  EventTypeWatcher,
+          }		type;		! type of filter */
 } Filter;
+
+Filter filter_data; // TODO
 
 /*
  * Filter function for SDL_FilterEvents and SDL_SetEventFilter.
  */
 static int
-eventFilter(Filter *data, SDL_Event *ev)
+eventFilter(const SDL_Event* ev)
 {
-	int nret, value;
+  lua_rawgeti(filter_data.L, LUA_REGISTRYINDEX, filter_data.ref);
+  eventPush(filter_data.L, ev);
+  lua_call(filter_data.L, 1, 1);
 
-	/* EventWatcher discard return type */
-	nret = (data->type == EventTypeWatcher) ? 0 : 1;
-
-	lua_rawgeti(data->L, LUA_REGISTRYINDEX, data->ref);
-	eventPush(data->L, ev);
-	lua_call(data->L, 1, nret);
-
-	/* Return value is needed for EventFilter */
-	value = (data->type == EventTypeFilter) ? lua_toboolean(data->L, -1) : 0;
-
-	return value;
+  /* Return value is needed for EventFilter */
+  return lua_toboolean(filter_data.L, -1);
 }
 
 static int
-eventIterator(lua_State *L)
+eventIterator(lua_State* L)
 {
-	SDL_Event ev;
+  SDL_Event ev;
 
-	if (SDL_PollEvent(&ev) == 0)
-		return 0;
+  if (SDL_PollEvent(&ev) == 0)
+    return 0;
 
-	eventPush(L, &ev);
+  eventPush(L, &ev);
 
-	return 1;
+  return 1;
 }
 
 static int
-eventAddFilter(lua_State *L, int type)
+l_event_setEventFilter(lua_State* L)
 {
-	Filter *f;
+  luaL_checktype(L, 1, LUA_TFUNCTION);
 
-	luaL_checktype(L, 1, LUA_TFUNCTION);
+  filter_data.L = L;
 
-	if ((f = malloc(sizeof (Filter))) == NULL)
-		return commonPushErrno(L, 1);
+  /* Push the function and ref it */
+  lua_pushvalue(L, 1);
+  filter_data.ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
-	f->L = L;
-	f->type = type;
+  SDL_SetEventFilter((SDL_EventFilter)eventFilter);
 
-	/* Push the function and ref it */
-	lua_pushvalue(L, 1);
-	f->ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  /* Push the object to the user */
+  commonPushUserdata(L, EventFilterName, &filter_data);
 
-	if (type == EventTypeWatcher)
-		SDL_AddEventWatch((SDL_EventFilter)eventFilter, f);
-	else if (type == EventTypeFilter)
-		SDL_SetEventFilter((SDL_EventFilter)eventFilter, f);
-
-	/* Push the object to the user */
-	commonPushUserdata(L, EventFilterName, f);
-
-	return 1;
+  return 1;
 }
 
 /* ---------------------------------------------------------
@@ -121,11 +108,11 @@ eventAddFilter(lua_State *L, int type)
  * Arguments:
  *	f the function
  */
-static int
+/*static int
 l_event_addEventWatch(lua_State *L)
 {
-	return eventAddFilter(L, EventTypeWatcher);
-}
+        return eventAddFilter(L, EventTypeWatcher);
+}*/
 
 /*
  * SDL.eventState(type, state)
@@ -138,12 +125,12 @@ l_event_addEventWatch(lua_State *L)
  *	The current state or the new state
  */
 static int
-l_event_eventState(lua_State *L)
+l_event_eventState(lua_State* L)
 {
-	int type	= luaL_checkinteger(L, 1);
-	int state	= luaL_checkinteger(L, 2);
+  int type = luaL_checkinteger(L, 1);
+  int state = luaL_checkinteger(L, 2);
 
-	return commonPush(L, "i", SDL_EventState(type, state));
+  return commonPush(L, "i", SDL_EventState(type, state));
 }
 
 /*
@@ -156,23 +143,19 @@ l_event_eventState(lua_State *L)
  *	func the function
  */
 static int
-l_event_filterEvents(lua_State *L)
+l_event_filterEvents(lua_State* L)
 {
-	Filter f;
+  luaL_checktype(L, 1, LUA_TFUNCTION);
 
-	luaL_checktype(L, 1, LUA_TFUNCTION);
+  filter_data.L = L;
+  /* Push the temporarly function */
+  lua_pushvalue(L, 1);
+  filter_data.ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
-	f.L = L;
-	f.type = EventTypeFilter;
+  SDL_SetEventFilter(eventFilter);
+  luaL_unref(L, LUA_REGISTRYINDEX, filter_data.ref);
 
-	/* Push the temporarly function */
-	lua_pushvalue(L, 1);
-	f.ref = luaL_ref(L, LUA_REGISTRYINDEX);
-
-	SDL_FilterEvents((SDL_EventFilter)eventFilter, &f);
-	luaL_unref(L, LUA_REGISTRYINDEX, f.ref);
-
-	return 0;
+  return 0;
 }
 
 /*
@@ -181,15 +164,15 @@ l_event_filterEvents(lua_State *L)
  * Arguments:
  *	type the event type
  */
-static int
-l_event_flushEvent(lua_State *L)
+/*static int
+l_event_flushEvent(lua_State* L)
 {
-	int type = luaL_checkinteger(L, 1);
+  int type = luaL_checkinteger(L, 1);
 
-	SDL_FlushEvent(type);
+  SDL_FlushEvent(type);
 
-	return 0;
-}
+  return 0;
+}*/
 
 /*
  * SDL.flushEvents(min, max)
@@ -198,16 +181,16 @@ l_event_flushEvent(lua_State *L)
  *	min the minimum type event
  *	max the maximum type event
  */
-static int
-l_event_flushEvents(lua_State *L)
+/*static int
+l_event_flushEvents(lua_State* L)
 {
-	int min = luaL_checkinteger(L, 1);
-	int max = luaL_checkinteger(L, 2);
+  int min = luaL_checkinteger(L, 1);
+  int max = luaL_checkinteger(L, 2);
 
-	SDL_FlushEvents(min, max);
+  SDL_FlushEvents(min, max);
 
-	return 0;
-}
+  return 0;
+}*/
 
 /*
  * SDL.hasEvent(type)
@@ -218,13 +201,13 @@ l_event_flushEvents(lua_State *L)
  * Returns:
  *	True if has event
  */
-static int
-l_event_hasEvent(lua_State *L)
+/*static int
+l_event_hasEvent(lua_State* L)
 {
-	int type = luaL_checkinteger(L, 1);
+  int type = luaL_checkinteger(L, 1);
 
-	return commonPush(L, "b", SDL_HasEvent(type));
-}
+  return commonPush(L, "b", SDL_HasEvent(type));
+}*/
 
 /*
  * SDL.hasEvents(min, max)
@@ -236,14 +219,14 @@ l_event_hasEvent(lua_State *L)
  * Returns:
  *	True if has events
  */
-static int
-l_event_hasEvents(lua_State *L)
+/*static int
+l_event_hasEvents(lua_State* L)
 {
-	int min = luaL_checkinteger(L, 1);
-	int max = luaL_checkinteger(L, 2);
+  int min = luaL_checkinteger(L, 1);
+  int max = luaL_checkinteger(L, 2);
 
-	return commonPush(L, "b", SDL_HasEvents(min, max));
-}
+  return commonPush(L, "b", SDL_HasEvents(min, max));
+}*/
 
 /*
  * SDL.peepEvents(count, action, first, last)
@@ -259,44 +242,41 @@ l_event_hasEvents(lua_State *L)
  *	The error message
  */
 static int
-l_event_peepEvents(lua_State *L)
+l_event_peepEvents(lua_State* L)
 {
-	int count	= luaL_checkinteger(L, 1);
-	int action	= luaL_checkinteger(L, 2);
-	int first	= SDL_FIRSTEVENT;
-	int last	= SDL_LASTEVENT;
-	int ret, toreturn;
-	SDL_Event *events;
+  int count = luaL_checkinteger(L, 1);
+  int action = luaL_checkinteger(L, 2);
+  unsigned mask = 0;
+  int ret, toreturn;
+  SDL_Event* events;
 
-	/*
-	 * First and last are defaulted to SDL_FIRSTEVENT and SDL_LASTEVENT.
-	 */
-	if (lua_gettop(L) >= 3)
-		first = luaL_checkinteger(L, 3);
-	if (lua_gettop(L) >= 4)
-		last = luaL_checkinteger(L, 4);
+  /*
+   * First and last are defaulted to SDL_FIRSTEVENT and SDL_LASTEVENT.
+   */
+  if (lua_gettop(L) >= 3)
+    mask = luaL_checkinteger(L, 3);
 
-	if ((events = calloc(sizeof (SDL_Event), count)) == NULL)
-		return commonPushErrno(L, 1);
+  if ((events = calloc(sizeof(SDL_Event), count)) == NULL)
+    return commonPushErrno(L, 1);
 
-	ret = SDL_PeepEvents(events, count, action, first, last);
+  ret = SDL_PeepEvents(events, count, action, mask);
 
-	if (ret >= 0) {
-		int i;
+  if (ret >= 0) {
+    int i;
 
-		lua_createtable(L, ret, ret);
-		for (i = 0; i < ret; ++i) {
-			eventPush(L, &events[i]);
-			lua_rawseti(L, -2, i + 1);
-		}
+    lua_createtable(L, ret, ret);
+    for (i = 0; i < ret; ++i) {
+      eventPush(L, &events[i]);
+      lua_rawseti(L, -2, i + 1);
+    }
 
-		toreturn = 1;
-	} else
-		toreturn = commonPushSDLError(L, 1);
+    toreturn = 1;
+  } else
+    toreturn = commonPushSDLError(L, 1);
 
-	free(events);
+  free(events);
 
-	return toreturn;
+  return toreturn;
 }
 
 /*
@@ -306,24 +286,24 @@ l_event_peepEvents(lua_State *L)
  *	An iterator function which returns an event each time it is called
  */
 static int
-l_event_pollEvent(lua_State *L)
+l_event_pollEvent(lua_State* L)
 {
-	lua_pushcclosure(L, eventIterator, 0);
+  lua_pushcclosure(L, eventIterator, 0);
 
-	return 1;
+  return 1;
 }
 
 /*
  * SDL.pumpEvents()
  */
 static int
-l_event_pumpEvents(lua_State *L)
+l_event_pumpEvents(lua_State* L)
 {
-	SDL_PumpEvents();
+  SDL_PumpEvents();
 
-	(void)L;
+  (void)L;
 
-	return 0;
+  return 0;
 }
 
 /*
@@ -333,9 +313,9 @@ l_event_pumpEvents(lua_State *L)
  *	True if quit was requested
  */
 static int
-l_event_quitRequested(lua_State *L)
+l_event_quitRequested(lua_State* L)
 {
-	return commonPush(L, "b", SDL_QuitRequested());
+  return commonPush(L, "b", SDL_QuitRequested());
 }
 
 /*
@@ -347,17 +327,18 @@ l_event_quitRequested(lua_State *L)
  * Returns:
  *	The beginning number
  */
-static int
-l_event_registerEvents(lua_State *L)
+
+/*static int
+l_event_registerEvents(lua_State* L)
 {
-	int num = luaL_checkinteger(L, 1);
-	Uint32 ret;
+  int num = luaL_checkinteger(L, 1);
+  Uint32 ret;
 
-	if ((ret = SDL_RegisterEvents(num)) == (Uint32)-1)
-		return commonPushSDLError(L, 1);
+  if ((ret = SDL_RegisterEvents(num)) == (Uint32)-1)
+    return commonPushSDLError(L, 1);
 
-	return commonPush(L, "i", ret);
-}
+  return commonPush(L, "i", ret);
+}*/
 
 /*
  * SDL.setEventFilter(func)
@@ -372,11 +353,11 @@ l_event_registerEvents(lua_State *L)
  *	True on success or false on failure
  *	The error message
  */
-static int
+/*static int
 l_event_setEventFilter(lua_State *L)
 {
-	return eventAddFilter(L, EventTypeFilter);
-}
+        return eventAddFilter(L);
+}*/
 
 /*
  * SDL.waitEvent(timeout)
@@ -389,140 +370,133 @@ l_event_setEventFilter(lua_State *L)
  *	The error message
  */
 static int
-l_event_waitEvent(lua_State *L)
+l_event_waitEvent(lua_State* L)
 {
-	SDL_Event ev;
-	int timeout, ret;
+  SDL_Event ev;
+  int ret;
 
-	if (lua_gettop(L) >= 1) {
-		timeout = luaL_checkinteger(L, 1);
-		ret = SDL_WaitEventTimeout(&ev, timeout);
-	} else {
-		ret = SDL_WaitEvent(&ev);
-	}
+  ret = SDL_WaitEvent(&ev);
 
-	if (!ret)
-		return commonPushSDLError(L, 1);
+  if (!ret)
+    return commonPushSDLError(L, 1);
 
-	eventPush(L, &ev);
+  eventPush(L, &ev);
 
-	return 1;
+  return 1;
 }
 
 const luaL_Reg EventFunctions[] = {
-	{ "addEventWatch",		l_event_addEventWatch		},
-	{ "eventState",			l_event_eventState		},
-	{ "filterEvents",		l_event_filterEvents		},
-	{ "flushEvent",			l_event_flushEvent		},
-	{ "flushEvents",		l_event_flushEvents		},
-	{ "hasEvent",			l_event_hasEvent		},
-	{ "hasEvents",			l_event_hasEvents		},
-	{ "peepEvents",			l_event_peepEvents		},
-	{ "pollEvent",			l_event_pollEvent		},
-	{ "pumpEvents",			l_event_pumpEvents		},
+  /*{ "addEventWatch",		l_event_addEventWatch		},*/
+  { "eventState", l_event_eventState },
+  { "filterEvents", l_event_filterEvents },
+  /*{ "flushEvent", l_event_flushEvent },
+  { "flushEvents", l_event_flushEvents },
+  { "hasEvent", l_event_hasEvent },
+  { "hasEvents", l_event_hasEvents },*/
+  { "peepEvents", l_event_peepEvents },
+  { "pollEvent", l_event_pollEvent },
+  { "pumpEvents", l_event_pumpEvents },
 #if 0
 	{ "pushEvent",			l_event_pushEvent		},
 #endif
-	{ "quitRequested",		l_event_quitRequested		},
-	{ "registerEvents",		l_event_registerEvents		},
-	{ "setEventFilter",		l_event_setEventFilter		},
-	{ "waitEvent",			l_event_waitEvent		},
-	{ NULL,				NULL				}
+  { "quitRequested", l_event_quitRequested },
+  /*{ "registerEvents", l_event_registerEvents },*/
+  { "setEventFilter", l_event_setEventFilter },
+  { "waitEvent", l_event_waitEvent },
+  { NULL, NULL }
 };
 
 /*
  * SDL.eventAction
  */
-const CommonEnum EventAction[]= {
-	{ "Add",			SDL_ADDEVENT			},
-	{ "Peek",			SDL_PEEKEVENT			},
-	{ "Get",			SDL_GETEVENT			},
-	{ NULL,				-1				}
-};
+const CommonEnum EventAction[] = { { "Add", SDL_ADDEVENT },
+                                   { "Peek", SDL_PEEKEVENT },
+                                   { "Get", SDL_GETEVENT },
+                                   { NULL, -1 } };
 
 /*
  * SDL.event
  */
 const CommonEnum EventType[] = {
-	{ "First",			SDL_FIRSTEVENT			},
-	{ "Quit",			SDL_QUIT			},
-	{ "AppTerminating",		SDL_APP_TERMINATING		},
-	{ "AppLowMemory",		SDL_APP_LOWMEMORY		},
-	{ "AppWillEnterBackground",	SDL_APP_WILLENTERBACKGROUND	},
-	{ "AppDidEnterBackground",	SDL_APP_DIDENTERBACKGROUND	},
-	{ "AppWillEnterForeground",	SDL_APP_WILLENTERFOREGROUND	},
-	{ "AppDidEnterForeground",	SDL_APP_DIDENTERFOREGROUND	},
-	{ "WindowEvent",		SDL_WINDOWEVENT			},
-	{ "KeyDown",			SDL_KEYDOWN			},
-	{ "KeyUp",			SDL_KEYUP			},
-	{ "TextEditing",		SDL_TEXTEDITING			},
-	{ "TextInput",			SDL_TEXTINPUT			},
-	{ "MouseMotion",		SDL_MOUSEMOTION			},
-	{ "MouseButtonDown",		SDL_MOUSEBUTTONDOWN		},
-	{ "MouseButtonUp",		SDL_MOUSEBUTTONUP		},
-	{ "MouseWheel",			SDL_MOUSEWHEEL			},
-	{ "JoyAxisMotion",		SDL_JOYAXISMOTION		},
-	{ "JoyBallMotion",		SDL_JOYBALLMOTION		},
-	{ "JoyHatMotion",		SDL_JOYHATMOTION		},
-	{ "JoyButtonDown",		SDL_JOYBUTTONDOWN		},
-	{ "JoyButtonUp",		SDL_JOYBUTTONUP			},
-	{ "JoyDeviceAdded",		SDL_JOYDEVICEADDED		},
-	{ "JoyDeviceRemoved",		SDL_JOYDEVICEREMOVED		},
-	{ "ControllerAxisMotion",	SDL_CONTROLLERAXISMOTION	},
-	{ "ControllerButtonDown",	SDL_CONTROLLERBUTTONDOWN	},
-	{ "ControllerButtonUp",		SDL_CONTROLLERBUTTONUP		},
-	{ "ControllerDeviceAdded",	SDL_CONTROLLERDEVICEADDED	},
-	{ "ControllerDeviceRemoved",	SDL_CONTROLLERDEVICEREMOVED	},
-	{ "ControllerDeviceRemapped",	SDL_CONTROLLERDEVICEREMAPPED	},
-	{ "FingerDown",			SDL_FINGERDOWN			},
-	{ "FingerUp",			SDL_FINGERUP			},
-	{ "FingerMotion",		SDL_FINGERMOTION		},
-	{ "DollarGesture",		SDL_DOLLARGESTURE		},
-	{ "DollarRecord",		SDL_DOLLARRECORD		},
-	{ "MultiGesture",		SDL_MULTIGESTURE		},
-	{ "ClipboardUpdate",		SDL_CLIPBOARDUPDATE		},
-	{ "DropFile",			SDL_DROPFILE			},
+  /*{ "First", SDL_FIRSTEVENT },*/
+  { "Quit", SDL_QUIT },
+  /*{ "AppTerminating", SDL_APP_TERMINATING },
+  { "AppLowMemory", SDL_APP_LOWMEMORY },
+  { "AppWillEnterBackground", SDL_APP_WILLENTERBACKGROUND },
+  { "AppDidEnterBackground", SDL_APP_DIDENTERBACKGROUND },
+  { "AppWillEnterForeground", SDL_APP_WILLENTERFOREGROUND },
+  { "AppDidEnterForeground", SDL_APP_DIDENTERFOREGROUND },
+  { "WindowEvent", SDL_WINDOWEVENT },*/
+  { "KeyDown", SDL_KEYDOWN },
+  { "KeyUp", SDL_KEYUP },
+  /*{ "TextEditing", SDL_TEXTEDITING },
+  { "TextInput", SDL_TEXTINPUT },*/
+  { "MouseMotion", SDL_MOUSEMOTION },
+  { "MouseButtonDown", SDL_MOUSEBUTTONDOWN },
+  { "MouseButtonUp", SDL_MOUSEBUTTONUP },
+  /*{ "MouseWheel", SDL_MOUSEWHEEL },*/
+  { "JoyAxisMotion", SDL_JOYAXISMOTION },
+  { "JoyBallMotion", SDL_JOYBALLMOTION },
+  { "JoyHatMotion", SDL_JOYHATMOTION },
+  { "JoyButtonDown", SDL_JOYBUTTONDOWN },
+  { "JoyButtonUp", SDL_JOYBUTTONUP },
+/*{ "JoyDeviceAdded", SDL_JOYDEVICEADDED },
+{ "JoyDeviceRemoved", SDL_JOYDEVICEREMOVED },
+{ "ControllerAxisMotion", SDL_CONTROLLERAXISMOTION },
+{ "ControllerButtonDown", SDL_CONTROLLERBUTTONDOWN },
+{ "ControllerButtonUp", SDL_CONTROLLERBUTTONUP },
+{ "ControllerDeviceAdded", SDL_CONTROLLERDEVICEADDED },
+{ "ControllerDeviceRemoved", SDL_CONTROLLERDEVICEREMOVED },
+{ "ControllerDeviceRemapped", SDL_CONTROLLERDEVICEREMAPPED },
+{ "FingerDown", SDL_FINGERDOWN },
+{ "FingerUp", SDL_FINGERUP },
+{ "FingerMotion", SDL_FINGERMOTION },
+{ "DollarGesture", SDL_DOLLARGESTURE },
+{ "DollarRecord", SDL_DOLLARRECORD },
+{ "MultiGesture", SDL_MULTIGESTURE },
+{ "ClipboardUpdate", SDL_CLIPBOARDUPDATE },
+{ "DropFile", SDL_DROPFILE },*/
 #if SDL_VERSION_ATLEAST(2, 0, 2)
-	{ "RenderTargetsReset",		SDL_RENDER_TARGETS_RESET	},
+  { "RenderTargetsReset", SDL_RENDER_TARGETS_RESET },
 #endif
 #if SDL_VERSION_ATLEAST(2, 0, 4)
-	{ "RenderDeviceReset",		SDL_RENDER_DEVICE_RESET		},
-	{ "AudioDeviceAdded",		SDL_AUDIODEVICEADDED		},
-	{ "AudioDeviceRemoved",		SDL_AUDIODEVICEREMOVED		},
+  { "RenderDeviceReset", SDL_RENDER_DEVICE_RESET },
+  { "AudioDeviceAdded", SDL_AUDIODEVICEADDED },
+  { "AudioDeviceRemoved", SDL_AUDIODEVICEREMOVED },
 #endif
 #if SDL_VERSION_ATLEAST(2, 0, 5)
-	{ "DropText",			SDL_DROPTEXT			},
-	{ "DropBegin",			SDL_DROPBEGIN			},
-	{ "DropComplete",		SDL_DROPCOMPLETE		},
+  { "DropText", SDL_DROPTEXT },
+  { "DropBegin", SDL_DROPBEGIN },
+  { "DropComplete", SDL_DROPCOMPLETE },
 #endif
-	{ "UserEvent",			SDL_USEREVENT			},
-	{ "Last",			SDL_LASTEVENT			},
-	{ NULL,				-1				}
+  { "UserEvent", SDL_USEREVENT },
+  /*{ "Last", SDL_LASTEVENT },*/
+  { NULL, -1 }
 };
 
 /*
  * SDL.eventWindow
  */
 const CommonEnum EventWindow[] = {
-	{ "Shown",			SDL_WINDOWEVENT_SHOWN		},
-	{ "Hidden",			SDL_WINDOWEVENT_HIDDEN		},
-	{ "Exposed",			SDL_WINDOWEVENT_EXPOSED		},
-	{ "Moved",			SDL_WINDOWEVENT_MOVED		},
-	{ "Resized",			SDL_WINDOWEVENT_RESIZED		},
-	{ "SizeChanged",		SDL_WINDOWEVENT_SIZE_CHANGED	},
-	{ "Minimized",			SDL_WINDOWEVENT_MINIMIZED	},
-	{ "Maximized",			SDL_WINDOWEVENT_MAXIMIZED	},
-	{ "Restored",			SDL_WINDOWEVENT_RESTORED	},
-	{ "Enter",			SDL_WINDOWEVENT_ENTER		},
-	{ "Leave",			SDL_WINDOWEVENT_LEAVE		},
-	{ "FocusGained",		SDL_WINDOWEVENT_FOCUS_GAINED	},
-	{ "FocusLost",			SDL_WINDOWEVENT_FOCUS_LOST	},
-	{ "Close",			SDL_WINDOWEVENT_CLOSE		},
+/*{ "Shown", SDL_WINDOWEVENT_SHOWN },
+  { "Hidden", SDL_WINDOWEVENT_HIDDEN },
+  { "Exposed", SDL_WINDOWEVENT_EXPOSED },
+  { "Moved", SDL_WINDOWEVENT_MOVED },
+  { "Resized", SDL_WINDOWEVENT_RESIZED },
+  { "SizeChanged", SDL_WINDOWEVENT_SIZE_CHANGED },
+  { "Minimized", SDL_WINDOWEVENT_MINIMIZED },
+  { "Maximized", SDL_WINDOWEVENT_MAXIMIZED },
+  { "Restored", SDL_WINDOWEVENT_RESTORED },
+  { "Enter", SDL_WINDOWEVENT_ENTER },
+  { "Leave", SDL_WINDOWEVENT_LEAVE },
+  { "FocusGained", SDL_WINDOWEVENT_FOCUS_GAINED },
+  { "FocusLost", SDL_WINDOWEVENT_FOCUS_LOST },
+  { "Close", SDL_WINDOWEVENT_CLOSE },*/
 #if SDL_VERSION_ATLEAST(2, 0, 5)
-	{ "TakeFocus",			SDL_WINDOWEVENT_TAKE_FOCUS	},
-	{ "HitTest",			SDL_WINDOWEVENT_HIT_TEST	},
+  { "TakeFocus", SDL_WINDOWEVENT_TAKE_FOCUS },
+  { "HitTest", SDL_WINDOWEVENT_HIT_TEST },
 #endif
-	{ NULL,				-1				}
+  { NULL, -1 }
 };
 
 /* --------------------------------------------------------
@@ -530,331 +504,180 @@ const CommonEnum EventWindow[] = {
  * -------------------------------------------------------- */
 
 static int
-l_filter_eq(lua_State *L)
+l_filter_eq(lua_State* L)
 {
-	Filter *f1 = commonGetAs(L, 1, EventFilterName, Filter *);
-	Filter *f2 = commonGetAs(L, 1, EventFilterName, Filter *);
+  Filter* f1 = commonGetAs(L, 1, EventFilterName, Filter*);
+  Filter* f2 = commonGetAs(L, 1, EventFilterName, Filter*);
 
-	return commonPush(L, "b", f1 == f2);
+  return commonPush(L, "b", f1 == f2);
 }
 
 static int
-l_filter_gc(lua_State *L)
+l_filter_gc(lua_State* L)
 {
-	Filter *f = commonGetAs(L, 1, EventFilterName, Filter *);
-
-	if (f->type == EventTypeFilter)
-		SDL_SetEventFilter(NULL, NULL);
-	else if (f->type == EventTypeWatcher)
-		SDL_DelEventWatch((SDL_EventFilter)eventFilter, f);
-
-	/* Unref the function */
-	luaL_unref(L, LUA_REGISTRYINDEX, f->ref);
-
-	free(f);
-
-	return 0;
+  SDL_SetEventFilter(NULL);
+  /* Unref the function */
+  luaL_unref(L, LUA_REGISTRYINDEX, filter_data.ref);
+  return 0;
 }
 
 static int
-l_filter_tostring(lua_State *L)
+l_filter_tostring(lua_State* L)
 {
-	Filter *f = commonGetAs(L, 1, EventFilterName, Filter *);
+  Filter* f = commonGetAs(L, 1, EventFilterName, Filter*);
 
-	lua_pushfstring(L, "filter %p", f);
+  lua_pushfstring(L, "filter %p", f);
 
-	return 1;
+  return 1;
 }
 
 /* --------------------------------------------------------
  * Event object definition
  * -------------------------------------------------------- */
 
-const luaL_Reg filterMethods[] = {
-	{ "remove",		l_filter_gc			},
-	{ NULL,			NULL				}
-};
+const luaL_Reg filterMethods[] = { { "remove", l_filter_gc }, { NULL, NULL } };
 
-const luaL_Reg filterMetamethods[] = {
-	{ "__eq",		l_filter_eq			},
-	{ "__gc",		l_filter_gc			},
-	{ "__tostring",		l_filter_tostring		},
-	{ NULL,			NULL				}
-};
+const luaL_Reg filterMetamethods[] = { { "__eq", l_filter_eq },
+                                       { "__gc", l_filter_gc },
+                                       { "__tostring", l_filter_tostring },
+                                       { NULL, NULL } };
 
-const CommonObject EventFilter = {
-	"Event",
-	filterMethods,
-	filterMetamethods
-};
+const CommonObject EventFilter = { "Event", filterMethods, filterMetamethods };
 
 /* --------------------------------------------------------
  * Shared functions
  * -------------------------------------------------------- */
 
-typedef void (*PushFunc)(lua_State *L, const SDL_Event *);
+typedef void (*PushFunc)(lua_State* L, const SDL_Event*);
 
 static void
-pushWindow(lua_State *L, const SDL_Event *ev)
+pushKey(lua_State* L, const SDL_Event* ev)
 {
-	tableSetInt(L, -1, "windowID", ev->window.windowID);
-	tableSetInt(L, -1, "event", ev->window.event);
-	tableSetInt(L, -1, "timestamp", ev->window.timestamp);
-	tableSetInt(L, -1, "data1", ev->window.data1);
-	tableSetInt(L, -1, "data2", ev->window.data2);
+  tableSetInt(L, -1, "state", ev->key.state);
+  tableSetInt(L, -1, "type", ev->key.type);
+
+  /* Table keysym for the Key information */
+  lua_createtable(L, 3, 3);
+  tableSetInt(L, -1, "scancode", ev->key.keysym.scancode);
+  tableSetInt(L, -1, "sym", ev->key.keysym.sym);
+  // tableSetEnum(L, -1, ev->key.keysym.mod, KeyboardModifiers, "mod");
+  tableSetInt(L, -1, "mod", ev->key.keysym.mod);
+  lua_setfield(L, -2, "keysym");
 }
 
 static void
-pushKey(lua_State *L, const SDL_Event *ev)
+pushMouseMotion(lua_State* L, const SDL_Event* ev)
 {
-	tableSetInt(L, -1, "windowID", ev->key.windowID);
-	tableSetInt(L, -1, "state", ev->key.state);
-	tableSetBool(L, -1, "repeat", ev->key.repeat);
+  tableSetInt(L, -1, "x", ev->motion.x);
+  tableSetInt(L, -1, "y", ev->motion.y);
+  tableSetInt(L, -1, "xrel", ev->motion.xrel);
+  tableSetInt(L, -1, "yrel", ev->motion.yrel);
+  tableSetInt(L, -1, "which", ev->motion.which);
+  tableSetEnum(L, -1, ev->motion.state, MouseMask, "state");
 
-	/* Table keysym for the Key information */
-	lua_createtable(L, 3, 3);
-	tableSetInt(L, -1, "scancode", ev->key.keysym.scancode);
-	tableSetInt(L, -1, "sym", ev->key.keysym.sym);
-	tableSetEnum(L, -1, ev->key.keysym.mod, KeyboardModifiers, "mod");
-	lua_setfield(L, -2, "keysym");
+  //  if (ev->motion.which == SDL_TOUCH_MOUSEID)
+  //   tableSetBool(L, -1, "touch", 1);
 }
 
 static void
-pushTextEditing(lua_State *L, const SDL_Event *ev)
+pushMouseButton(lua_State* L, const SDL_Event* ev)
 {
-	tableSetInt(L, -1, "windowID", ev->edit.windowID);
-	tableSetString(L, -1, "text", ev->edit.text);
-	tableSetInt(L, -1, "start", ev->edit.start);
-	tableSetInt(L, -1, "length", ev->edit.length);
+  tableSetInt(L, -1, "button", ev->button.button);
+  tableSetInt(L, -1, "x", ev->button.x);
+  tableSetInt(L, -1, "y", ev->button.y);
+  tableSetInt(L, -1, "which", ev->button.which);
+  tableSetBool(L, -1, "state", ev->button.state);
+
+  //  if (ev->motion.which == SDL_TOUCH_MOUSEID)
+  //    tableSetBool(L, -1, "touch", 1);
 }
 
 static void
-pushTextInput(lua_State *L, const SDL_Event *ev)
+pushJoyAxisMotion(lua_State* L, const SDL_Event* ev)
 {
-	tableSetInt(L, -1, "windowID", ev->text.windowID);
-	tableSetString(L, -1, "text", ev->text.text);
+  tableSetInt(L, -1, "which", ev->jaxis.which);
+  tableSetInt(L, -1, "axis", ev->jaxis.axis);
+  tableSetInt(L, -1, "value", ev->jaxis.value);
 }
 
 static void
-pushMouseMotion(lua_State *L, const SDL_Event *ev)
+pushJoyBallMotion(lua_State* L, const SDL_Event* ev)
 {
-	tableSetInt(L, -1, "windowID", ev->motion.windowID);
-	tableSetInt(L, -1, "x", ev->motion.x);
-	tableSetInt(L, -1, "y", ev->motion.y);
-	tableSetInt(L, -1, "xrel", ev->motion.xrel);
-	tableSetInt(L, -1, "yrel", ev->motion.yrel);
-	tableSetInt(L, -1, "which", ev->motion.which);
-	tableSetEnum(L, -1, ev->motion.state, MouseMask, "state");
-
-	if (ev->motion.which == SDL_TOUCH_MOUSEID)
-		tableSetBool(L, -1, "touch", 1);
+  tableSetInt(L, -1, "which", ev->jball.which);
+  tableSetInt(L, -1, "ball", ev->jball.ball);
+  tableSetInt(L, -1, "xrel", ev->jball.xrel);
+  tableSetInt(L, -1, "yrel", ev->jball.yrel);
 }
 
 static void
-pushMouseButton(lua_State *L, const SDL_Event *ev)
+pushJoyHatMotion(lua_State* L, const SDL_Event* ev)
 {
-	tableSetInt(L, -1, "windowID", ev->button.windowID);
-	tableSetInt(L, -1, "button", ev->button.button);
-	tableSetInt(L, -1, "x", ev->button.x);
-	tableSetInt(L, -1, "y", ev->button.y);
-	tableSetInt(L, -1, "which", ev->button.which);
-	tableSetBool(L, -1, "state", ev->button.state);
-#if SDL_VERSION_ATLEAST(2, 0, 2)
-	tableSetInt(L, -1, "clicks", ev->button.clicks);
-#endif
-
-	if (ev->motion.which == SDL_TOUCH_MOUSEID)
-		tableSetBool(L, -1, "touch", 1);
+  tableSetInt(L, -1, "which", ev->jhat.which);
+  tableSetInt(L, -1, "hat", ev->jhat.hat);
+  tableSetInt(L, -1, "value", ev->jhat.value);
 }
 
 static void
-pushMouseWheel(lua_State *L, const SDL_Event *ev)
+pushJoyButton(lua_State* L, const SDL_Event* ev)
 {
-	tableSetInt(L, -1, "windowID", ev->wheel.windowID);
-	tableSetInt(L, -1, "which", ev->wheel.which);
-	tableSetInt(L, -1, "x", ev->wheel.x);
-	tableSetInt(L, -1, "y", ev->wheel.y);
-#if SDL_VERSION_ATLEAST(2, 0, 4)
-	tableSetInt(L, -1, "direction", ev->wheel.direction);
-#endif
+  tableSetInt(L, -1, "which", ev->jbutton.which);
+  tableSetInt(L, -1, "button", ev->jbutton.button);
+  tableSetBool(L, -1, "state", ev->jbutton.state);
 }
-
-static void
-pushJoyAxisMotion(lua_State *L, const SDL_Event *ev)
-{
-	tableSetInt(L, -1, "which", ev->jaxis.which);
-	tableSetInt(L, -1, "axis", ev->jaxis.axis);
-	tableSetInt(L, -1, "value", ev->jaxis.value);
-}
-
-static void
-pushJoyBallMotion(lua_State *L, const SDL_Event *ev)
-{
-	tableSetInt(L, -1, "which", ev->jball.which);
-	tableSetInt(L, -1, "ball", ev->jball.ball);
-	tableSetInt(L, -1, "xrel", ev->jball.xrel);
-	tableSetInt(L, -1, "yrel", ev->jball.yrel);
-}
-
-static void
-pushJoyHatMotion(lua_State *L, const SDL_Event *ev)
-{
-	tableSetInt(L, -1, "which", ev->jhat.which);
-	tableSetInt(L, -1, "hat", ev->jhat.hat);
-	tableSetInt(L, -1, "value", ev->jhat.value);
-}
-
-static void
-pushJoyButton(lua_State *L, const SDL_Event *ev)
-{
-	tableSetInt(L, -1, "which", ev->jbutton.which);
-	tableSetInt(L, -1, "button", ev->jbutton.button);
-	tableSetBool(L, -1, "state", ev->jbutton.state);
-}
-
-static void
-pushJoyDev(lua_State *L, const SDL_Event *ev)
-{
-	tableSetInt(L, -1, "which", ev->jdevice.which);
-}
-
-static void
-pushCtlAxisMotion(lua_State *L, const SDL_Event *ev)
-{
-	tableSetInt(L, -1, "which", ev->caxis.which);
-	tableSetInt(L, -1, "axis", ev->caxis.axis);
-	tableSetInt(L, -1, "value", ev->caxis.value);
-}
-
-static void
-pushCtlButton(lua_State *L, const SDL_Event *ev)
-{
-	tableSetInt(L, -1, "which", ev->cbutton.which);
-	tableSetInt(L, -1, "button", ev->cbutton.button);
-	tableSetBool(L, -1, "state", ev->cbutton.state);
-}
-
-static void
-pushCtlDev(lua_State *L, const SDL_Event *ev)
-{
-	tableSetInt(L, -1, "which", ev->cdevice.which);
-}
-
-static void
-pushFinger(lua_State *L, const SDL_Event *ev)
-{
-	tableSetInt(L, -1, "touchId", (int)ev->tfinger.touchId);
-	tableSetInt(L, -1, "fingerId", (int)ev->tfinger.fingerId);
-	tableSetDouble(L, -1, "x", ev->tfinger.x);
-	tableSetDouble(L, -1, "y", ev->tfinger.y);
-	tableSetDouble(L, -1, "dx", ev->tfinger.dx);
-	tableSetDouble(L, -1, "dy", ev->tfinger.dx);
-	tableSetDouble(L, -1, "pressure", ev->tfinger.pressure);
-}
-
-static void
-pushDollarGesture(lua_State *L, const SDL_Event *ev)
-{
-	tableSetInt(L, -1, "touchId", (int)ev->dgesture.touchId);
-	tableSetDouble(L, -1, "x", ev->dgesture.x);
-	tableSetDouble(L, -1, "y", ev->dgesture.y);
-}
-
-static void
-pushMultiGesture(lua_State *L, const SDL_Event *ev)
-{
-	tableSetInt(L, -1, "touchId", (int)ev->mgesture.touchId);
-}
-
-static void
-pushDropFile(lua_State *L, const SDL_Event *ev)
-{
-	tableSetInt(L, -1, "timestamp", ev->drop.timestamp);
-
-#if defined(HAVE_DROPEVENT_WINDOW_ID)
-	tableSetInt(L, -1, "windowID", ev->drop.windowID);
-#endif
-
-	tableSetString(L, -1, "file", ev->drop.file);
-	SDL_free(ev->drop.file);
-}
-
-#if SDL_VERSION_ATLEAST(2, 0, 4)
-static void
-pushAudioDevice(lua_State *L, const SDL_Event *ev)
-{
-	tableSetInt(L, -1, "timestamp", ev->adevice.timestamp);
-	tableSetInt(L, -1, "which", ev->adevice.which);
-	tableSetBool(L, -1, "iscapture", ev->adevice.iscapture);
-}
-#endif
 
 void
-eventPush(lua_State *L, const SDL_Event *ev)
+eventPush(lua_State* L, const SDL_Event* ev)
 {
-	PushFunc func = NULL;
+  PushFunc func = NULL;
 
-	/*
-	 * Creates a table like:
-	 * {
-	 *	type = <number>
-	 *	<data> = <event_data>
-	 * }
-	 *
-	 * data will be defined by the push_* function.
-	 */
-	lua_createtable(L, 1, 1);
-	lua_pushinteger(L, ev->type);
-	lua_setfield(L, -2, "type");
+  /*
+   * Creates a table like:
+   * {
+   *	type = <number>
+   *	<data> = <event_data>
+   * }
+   *
+   * data will be defined by the push_* function.
+   */
+  lua_createtable(L, 1, 1);
+  lua_pushinteger(L, ev->type);
+  lua_setfield(L, -2, "type");
 
-	/*
-	 * I prefer using a switch rather than an array of functions pointer
-	 * because it's less convenient to initialize as C ANSI does not
-	 * support index initialization.
-	 */
-	switch (ev->type) {
-	case SDL_WINDOWEVENT:			func = pushWindow;		break;
-	case SDL_KEYDOWN:
-	case SDL_KEYUP:				func = pushKey;			break;
-	case SDL_TEXTEDITING:			func = pushTextEditing;		break;
-	case SDL_TEXTINPUT:			func = pushTextInput;		break;
-	case SDL_MOUSEMOTION:			func = pushMouseMotion;		break;
-	case SDL_MOUSEBUTTONDOWN:
-	case SDL_MOUSEBUTTONUP:			func = pushMouseButton;		break;
-	case SDL_MOUSEWHEEL:			func = pushMouseWheel;		break;
-	case SDL_JOYAXISMOTION:			func = pushJoyAxisMotion;	break;
-	case SDL_JOYBALLMOTION:			func = pushJoyBallMotion;	break;
-	case SDL_JOYHATMOTION:			func = pushJoyHatMotion;	break;
-	case SDL_JOYBUTTONDOWN:
-	case SDL_JOYBUTTONUP:			func = pushJoyButton;		break;
-	case SDL_JOYDEVICEADDED:
-	case SDL_JOYDEVICEREMOVED:		func = pushJoyDev;		break;
-	case SDL_CONTROLLERAXISMOTION:		func = pushCtlAxisMotion;	break;
-	case SDL_CONTROLLERBUTTONDOWN:
-	case SDL_CONTROLLERBUTTONUP:		func = pushCtlButton;		break;
-	case SDL_CONTROLLERDEVICEADDED:
-	case SDL_CONTROLLERDEVICEREMOVED:
-	case SDL_CONTROLLERDEVICEREMAPPED:	func = pushCtlDev;		break;
-	case SDL_FINGERDOWN:
-	case SDL_FINGERUP:
-	case SDL_FINGERMOTION:			func = pushFinger;		break;
-	case SDL_DOLLARGESTURE:			func = pushDollarGesture;	break;
-	case SDL_MULTIGESTURE:			func = pushMultiGesture;	break;
-#if SDL_VERSION_ATLEAST(2, 0, 5)
-	case SDL_DROPTEXT:
-	case SDL_DROPBEGIN:
-	case SDL_DROPCOMPLETE:
-#endif
-	case SDL_DROPFILE:			func = pushDropFile;		break;
-#if SDL_VERSION_ATLEAST(2, 0, 4)
-	case SDL_AUDIODEVICEADDED:
-	case SDL_AUDIODEVICEREMOVED:		func = pushAudioDevice;		break;
-#endif
-	case SDL_USEREVENT:			/* XXX: TO IMPLEMENT */
-	default:
-		break;
-	}
+  /*
+   * I prefer using a switch rather than an array of functions pointer
+   * because it's less convenient to initialize as C ANSI does not
+   * support index initialization.
+   */
+  switch (ev->type) {
+    case SDL_KEYDOWN:
+    case SDL_KEYUP:
+      func = pushKey;
+      break;
+    case SDL_MOUSEMOTION:
+      func = pushMouseMotion;
+      break;
+    case SDL_MOUSEBUTTONDOWN:
+    case SDL_MOUSEBUTTONUP:
+      func = pushMouseButton;
+      break;
+    case SDL_JOYAXISMOTION:
+      func = pushJoyAxisMotion;
+      break;
+    case SDL_JOYBALLMOTION:
+      func = pushJoyBallMotion;
+      break;
+    case SDL_JOYHATMOTION:
+      func = pushJoyHatMotion;
+      break;
+    case SDL_JOYBUTTONDOWN:
+    case SDL_JOYBUTTONUP:
+      func = pushJoyButton;
+      break;
+    case SDL_USEREVENT: /* XXX: TO IMPLEMENT */
+    default:
+      break;
+  }
 
-	if (func != NULL)
-		func(L, ev);
+  if (func != NULL)
+    func(L, ev);
 }

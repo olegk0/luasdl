@@ -1,5 +1,5 @@
 /*
- * common.c -- common code for LuaSDL2
+ * common.c -- common code for LuaSDL
  *
  * Copyright (c) 2013, 2014 David Demelier <markand@malikania.fr>
  *

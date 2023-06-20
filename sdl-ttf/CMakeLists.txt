@@ -1,5 +1,5 @@
 #
-# CMakeLists.txt -- build system for LuaSDL2 (SDL_ttf module)
+# CMakeLists.txt -- build system for LuaSDL (SDL_ttf module)
 #
 # Copyright (c) 2013, 2014 David Demelier <markand@malikania.fr>
 # Copyright (c) 2014 Joseph Wallace <tangent128@gmail.com>
@@ -36,10 +36,10 @@ set_target_properties(
 target_link_libraries(
 	ttf
 	common
-	SDL2::ttf
+	SDL::ttf
 )
 
 install(
 	TARGETS ttf
-	DESTINATION ${CMAKE_INSTALL_LIBDIR}/lua/${Lua_VERSION}/SDL
+	DESTINATION ${CMAKE_INSTALL_LIBDIR}/lua/${Lua_VERSION}/SDL1
 )
